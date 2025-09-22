@@ -1,10 +1,13 @@
 package com.example.aitourism.service;
 
+import com.example.aitourism.controller.ChatController;
 import com.example.aitourism.dto.*;
 import com.example.aitourism.entity.ChatMessage;
 import com.example.aitourism.entity.Session;
 import com.example.aitourism.mapper.ChatMessageMapper;
 import com.example.aitourism.mapper.SessionMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -15,6 +18,8 @@ public class ChatService {
     private final ChatMessageMapper chatMessageMapper;
     private final SessionMapper sessionMapper;
 
+    private static final Logger logger = LoggerFactory.getLogger(ChatService.class);
+
     public ChatService(ChatMessageMapper chatMessageMapper, SessionMapper sessionMapper) {
         this.chatMessageMapper = chatMessageMapper;
         this.sessionMapper = sessionMapper;
@@ -24,6 +29,7 @@ public class ChatService {
      * 发起对话
      */
     public String chat(String sessionId, String messages) {
+        logger.info("用户的问题是："+messages);
 
         // 如果 session 不存在，则创建
         Session session = sessionMapper.findBySessionId(sessionId);
@@ -64,7 +70,6 @@ public class ChatService {
      * 获取会话历史
      */
     public List<ChatMessageDTO> getHistory(String sessionId) {
-        System.out.println("sessionId:"+sessionId);
         List<ChatMessage> messages = chatMessageMapper.findBySessionId(sessionId);
         List<ChatMessageDTO> result = new ArrayList<>();
         for (ChatMessage m : messages) {

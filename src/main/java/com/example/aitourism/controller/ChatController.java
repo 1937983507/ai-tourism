@@ -1,7 +1,10 @@
 package com.example.aitourism.controller;
 
+import com.example.aitourism.config.LogInterceptor;
 import com.example.aitourism.dto.*;
 import com.example.aitourism.service.ChatService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -11,6 +14,7 @@ import java.util.List;
 public class ChatController {
 
     private final ChatService chatService;
+    private static final Logger logger = LoggerFactory.getLogger(ChatController.class);
 
     public ChatController(ChatService chatService) {
         this.chatService = chatService;
@@ -30,7 +34,6 @@ public class ChatController {
      */
     @PostMapping("/get_history")
     public ApiResponse<List<ChatMessageDTO>> getHistory(@RequestBody ChatHistoryRequest request) {
-        System.out.println(request);
         return ApiResponse.success(chatService.getHistory(request.getSessionId()));
     }
 
