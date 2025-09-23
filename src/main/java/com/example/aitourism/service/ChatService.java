@@ -1,6 +1,5 @@
 package com.example.aitourism.service;
 
-import com.example.aitourism.controller.ChatController;
 import com.example.aitourism.dto.*;
 import com.example.aitourism.entity.ChatMessage;
 import com.example.aitourism.entity.Session;
@@ -11,18 +10,21 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.stream.Collectors;
+
 @Service
 public class ChatService {
 
     private final ChatMessageMapper chatMessageMapper;
     private final SessionMapper sessionMapper;
 
+    private final AssistantService assistantService;
+
     private static final Logger logger = LoggerFactory.getLogger(ChatService.class);
 
-    public ChatService(ChatMessageMapper chatMessageMapper, SessionMapper sessionMapper) {
+    public ChatService(ChatMessageMapper chatMessageMapper, SessionMapper sessionMapper, AssistantService assistantService) {
         this.chatMessageMapper = chatMessageMapper;
         this.sessionMapper = sessionMapper;
+        this.assistantService = assistantService;
     }
 
     /**
@@ -52,7 +54,9 @@ public class ChatService {
         chatMessageMapper.insert(userMsg);
 
         // 模拟AI回复
-        String reply = "这是针对 [" + messages + "] 的AI回复";
+//         String reply = "这是针对 [" + messages + "] 的AI回复";
+        String reply = assistantService.chat(messages);
+
 
         ChatMessage assistantMsg = new ChatMessage();
         assistantMsg.setMsgId(UUID.randomUUID().toString());
