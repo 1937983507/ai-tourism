@@ -2,7 +2,9 @@ package com.example.aitourism.service;
 
 import ch.qos.logback.classic.Logger;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.service.AiServices;
+import dev.langchain4j.service.TokenStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
@@ -10,6 +12,7 @@ import org.springframework.context.annotation.ScopedProxyMode;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 import org.springframework.web.context.WebApplicationContext;
+import dev.langchain4j.model.chat.StreamingChatModel;
 
 @Service
 @RequiredArgsConstructor
@@ -38,12 +41,41 @@ public class AssistantService {
                 .build();
 
         assistant = AiServices.builder(Assistant.class)
-                .chatLanguageModel(model)
+                .chatModel(model)
                 .toolProvider(mcpClientService.createToolProvider())
                 .build();
     }
 
-    public String chat(String message) {
+    @PostConstruct
+    public void init_Stream() {
+        StreamingChatModel streamingModel = OpenAiStreamingChatModel.builder()
+                .apiKey(apiKey)
+                .baseUrl(baseUrl)
+                .modelName(modelName)
+                .build();
+
+        assistant = AiServices.builder(Assistant.class)
+                .streamingChatModel(streamingModel)
+                .toolProvider(mcpClientService.createToolProvider())
+                .build();
+
+    }
+
+    public TokenStream chat_Stream(String message) {
+        // 延迟初始化，确保在第一次使用时创建
+        if (assistant == null) {
+            init_Stream();
+        }
+
+        try {
+            return assistant.chat_Stream(message);
+        } catch (Exception e) {
+            // 可以在这里添加重试逻辑
+            throw new RuntimeException("Chat service unavailable", e);
+        }
+    }
+
+    public StringBuilder chat(String message) {
         // 延迟初始化，确保在第一次使用时创建
         if (assistant == null) {
             init();
@@ -66,13 +98,18 @@ public class AssistantService {
                 
                 ## 任务
                 若是用户需要某城市的旅游攻略，则进行如下流程：
-                首先获取该城市近几天的天气预报，结合调用搜索引擎获取该城市著名的景点。
+                首先获取该城市近几天的天气预报，
+                调用搜索引擎获取指定范围内的著名景点信息，一些热门景点最好有对应的经典附图。
+                （注意，若是有给出附图，则请仔细校验，避免出现图文不符的问题！）
                 最后于此，分析其所适合的旅游攻略。
                 
                 ## 输出
-                首先输出该城市未来几天的天气情况，给出出行建议（例如带伞/注意防晒等），
+                首先输出该城市未来几天的天气情况，给出出行建议（例如要带伞/防晒等），
                 然后将旅游攻略按天给出，例如第1天、第2天、等等。
             """)
-        String chat(String userMessage);
+
+        TokenStream chat_Stream(String userMessage);
+
+        StringBuilder chat(String userMessage);
     }
 }

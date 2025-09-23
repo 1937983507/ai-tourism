@@ -5,11 +5,24 @@ import com.example.aitourism.entity.ChatMessage;
 import com.example.aitourism.entity.Session;
 import com.example.aitourism.mapper.ChatMessageMapper;
 import com.example.aitourism.mapper.SessionMapper;
+import dev.langchain4j.model.chat.StreamingChatModel;
+import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
+import dev.langchain4j.service.AiServices;
+import dev.langchain4j.service.TokenStream;
+import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 @Service
 public class ChatService {
@@ -27,10 +40,21 @@ public class ChatService {
         this.assistantService = assistantService;
     }
 
+
+    @Value("${openai.api-key}")
+    private String apiKey;
+
+    @Value("${openai.base-url}")
+    private String baseUrl;
+
+    @Value("${openai.model-name}")
+    private String modelName;
+
+
     /**
      * 发起对话
      */
-    public String chat(String sessionId, String messages) {
+    public String chat(String sessionId, String messages, Boolean stream, HttpServletResponse response) throws Exception {
         logger.info("用户的问题是："+messages);
 
         // 如果 session 不存在，则创建
@@ -53,22 +77,66 @@ public class ChatService {
         userMsg.setContent(messages);
         chatMessageMapper.insert(userMsg);
 
-        // 模拟AI回复
-//         String reply = "这是针对 [" + messages + "] 的AI回复";
-        String reply = assistantService.chat(messages);
+        // LLM 回复的内容
+        final StringBuilder reply = new StringBuilder("");
 
+        if(!stream){
+            System.out.println("非流式返回");
+            reply.append(assistantService.chat(messages));
+        }else{
+            System.out.println("流式返回");
 
+            TokenStream tokenStream = assistantService.chat_Stream(messages);
+
+            // Set response type for event-stream
+            response.setContentType("text/event-stream");
+            response.setCharacterEncoding("UTF-8");
+
+            // Write response using PrintWriter
+            PrintWriter out = response.getWriter();
+
+            // CompletableFuture to handle completion
+            CompletableFuture<ChatResponse> futureResponse = new CompletableFuture<>();
+
+            // Handle the token response and format it as per OpenAI's event-stream protocol
+            tokenStream.onPartialResponse(token -> {
+                        // Construct the event stream data for each token received
+                        String tokenData = String.format(
+                                "data: {\"choices\":[{\"index\":0,\"text\":\"%s\",\"finish_reason\":\"%s\",\"model\":\"%s\"}]}%n",
+                                token.replace("\n", "\\n"), "stop", modelName
+                        );
+                        // 拼接LLM回复字符串
+                        reply.append(token.replace("\n", "\\n"));
+//                        System.out.println(tokenData);
+                        out.write(tokenData);
+                        out.flush();
+                    })
+                    .onCompleteResponse(futureResponse::complete)
+                    .onError(futureResponse::completeExceptionally)
+                    .start();
+
+            // Wait for the response to complete
+            futureResponse.get(300, SECONDS);
+
+            // Indicate the end of the stream to the client
+            out.write("data: {\"choices\":[{\"finish_reason\":\"stop\"}]}");
+            out.flush();
+        }
+
+        // 构建消息，准备存入数据库中
         ChatMessage assistantMsg = new ChatMessage();
         assistantMsg.setMsgId(UUID.randomUUID().toString());
         assistantMsg.setSessionId(sessionId);
         assistantMsg.setUserName("assistant");
         assistantMsg.setRole("assistant");
         assistantMsg.setTitle(session.getTitle());
-        assistantMsg.setContent(reply);
+        assistantMsg.setContent(reply.toString());
         chatMessageMapper.insert(assistantMsg);
 
-        return reply;
+        return reply.toString();
     }
+
+
 
     /**
      * 获取会话历史

@@ -62,7 +62,7 @@ mcp:
 openai:
   api-key: "sk-O5VvgPh3jH19zSE0wkxXwVz6P715WDlPwONNiHd7XOcJLTb6"
   base-url: "https://api.chatanywhere.tech/v1"
-  model-name: "gpt-5-mini"
+  model-name: "gpt-4o-mini"
 
 # HTTP客户端配置
 http:
