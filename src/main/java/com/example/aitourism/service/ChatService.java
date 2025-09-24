@@ -6,6 +6,9 @@ import com.example.aitourism.entity.Session;
 import com.example.aitourism.mapper.ChatMessageMapper;
 import com.example.aitourism.mapper.SessionMapper;
 import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.model.input.Prompt;
+import dev.langchain4j.model.input.PromptTemplate;
+import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.service.TokenStream;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -52,13 +55,17 @@ public class ChatService {
     public String chat(String sessionId, String messages, Boolean stream, HttpServletResponse response) throws Exception {
         logger.info("用户的问题是："+messages);
 
+        // 异步生成会话标题
+        CompletableFuture<String> titleFuture = getTitleAsync(messages);
+        String title = titleFuture.get(10, SECONDS);  // 超时10秒，避免长时间阻塞
+
         // 如果 session 不存在，则创建
         Session session = sessionMapper.findBySessionId(sessionId);
         if (session == null) {
             session = new Session();
             session.setSessionId(sessionId);
             session.setUserName("default_user");
-            session.setTitle(messages.length() > 10 ? messages.substring(0, 10) : messages);
+            session.setTitle(title.length() > 10 ? title.substring(0, 10) : title);
             sessionMapper.insert(session);
         }
 
@@ -131,6 +138,45 @@ public class ChatService {
     }
 
 
+    // 根据用户问题生成会话标题
+    public String getTitle(String message){
+        OpenAiChatModel model = OpenAiChatModel.builder()
+                .apiKey(apiKey)
+                .baseUrl(baseUrl)
+                .modelName(modelName)
+                .build();
+        // 提示词模板
+        String templete = "请根据用户以下的问题生成一个会话标题，注意需要严格限制字数在8个中文字以内！用户问题为:{{problem}} ";
+        PromptTemplate promptTemplate = PromptTemplate.from(templete);
+        // 填充变量(这里应该是用户自己输入的)
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("problem", message);
+        // 生成提示题
+        Prompt prompt = promptTemplate.apply(variables);
+        // 发起请求，并返回
+        return model.chat(prompt.text());
+    }
+
+    // 异步生成标题
+    public CompletableFuture<String> getTitleAsync(String message){
+        return CompletableFuture.supplyAsync(() -> {
+            OpenAiChatModel model = OpenAiChatModel.builder()
+                    .apiKey(apiKey)
+                    .baseUrl(baseUrl)
+                    .modelName(modelName)
+                    .build();
+            // 提示词模板
+            String template = "请根据用户以下的问题生成一个会话标题，注意需要严格限制字数在8个中文字以内！用户问题为:{{problem}} ";
+            PromptTemplate promptTemplate = PromptTemplate.from(template);
+            // 填充变量(这里应该是用户自己输入的)
+            Map<String, Object> variables = new HashMap<>();
+            variables.put("problem", message);
+            // 生成提示题
+            Prompt prompt = promptTemplate.apply(variables);
+            // 发起请求，并返回
+            return model.chat(prompt.text());
+        });
+    }
 
     /**
      * 获取会话历史

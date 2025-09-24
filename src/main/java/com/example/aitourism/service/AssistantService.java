@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.data.message.*;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
+import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.MemoryId;
@@ -66,13 +67,12 @@ public class AssistantService {
 //
 //        assistant = AiServices.builder(Assistant.class)
 //                .chatModel(model)
-//                .toolProvider(mcpClientService.createToolProvider())
 //                .build();
 //        System.out.println("init的assistant创建成功");
 //    }
 
     @PostConstruct
-    public void init() {
+    public void init_stream() {
 
         System.out.println("开始初始化 init");
 
@@ -83,7 +83,6 @@ public class AssistantService {
 //                .maxMessages(10)
 //                .chatMemoryStore(store)
 //                .build();
-
 
         StreamingChatModel streamingModel = OpenAiStreamingChatModel.builder()
                 .apiKey(apiKey)
@@ -105,21 +104,6 @@ public class AssistantService {
         }
     }
 
-    public TokenStream chat_Stream(String memoryId, String message) {
-        // 延迟初始化，确保在第一次使用时创建
-        if (assistant == null) {
-            init();
-        }
-
-        try {
-            // 开始发起流式请求
-            return assistant.chat_Stream(memoryId, message);
-        } catch (Exception e) {
-            // 可以在这里添加重试逻辑
-            throw new RuntimeException("Chat service unavailable", e);
-        }
-    }
-
 //    public String chat(String message) {
 //        System.out.println("进入非流式的chat");
 //        // 延迟初始化，确保在第一次使用时创建
@@ -134,6 +118,23 @@ public class AssistantService {
 //            throw new RuntimeException("Chat service unavailable", e);
 //        }
 //    }
+
+    public TokenStream chat_Stream(String memoryId, String message) {
+        // 延迟初始化，确保在第一次使用时创建
+        if (assistant == null) {
+            init_stream();
+        }
+
+        try {
+            // 开始发起流式请求
+            return assistant.chat_Stream(memoryId, message);
+        } catch (Exception e) {
+            // 可以在这里添加重试逻辑
+            throw new RuntimeException("Chat service unavailable", e);
+        }
+    }
+
+
 
     // 定义Assistant接口
     public interface Assistant{
