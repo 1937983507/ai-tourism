@@ -16,4 +16,5 @@ public class Session {
     private LocalDateTime createdTime;
     private LocalDateTime modifyTime;
     private String title;
+    private String dailyRoutes;
 }

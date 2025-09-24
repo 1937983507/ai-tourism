@@ -5,6 +5,11 @@ import com.example.aitourism.entity.Message;
 import com.example.aitourism.entity.Session;
 import com.example.aitourism.mapper.ChatMessageMapper;
 import com.example.aitourism.mapper.SessionMapper;
+import dev.langchain4j.model.chat.request.ResponseFormat;
+import dev.langchain4j.model.chat.request.json.JsonArraySchema;
+import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
+import dev.langchain4j.model.chat.request.json.JsonSchema;
+import dev.langchain4j.model.chat.request.json.JsonSchemaElement;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.input.Prompt;
 import dev.langchain4j.model.input.PromptTemplate;
@@ -20,7 +25,11 @@ import java.io.PrintWriter;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
+import static dev.langchain4j.model.chat.request.ResponseFormatType.JSON;
 import static java.util.concurrent.TimeUnit.SECONDS;
+
+import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.data.message.UserMessage;
 
 @Service
 public class ChatService {
@@ -122,6 +131,16 @@ public class ChatService {
             // Indicate the end of the stream to the client
             out.write("data: {\"choices\":[{\"finish_reason\":\"stop\"}]}");
             out.flush();
+
+            // 生成路线结构体对象
+            CompletableFuture<String> dailyRoutesFuture  = getDailyRoutes(reply.toString());
+            String dailyRoutes = dailyRoutesFuture.get(10, SECONDS);  // 超时10秒，避免长时间阻塞
+
+            // 更新数据库
+            sessionMapper.updateRoutine(dailyRoutes, sessionId);
+
+//            out.write(dailyRoutes);
+//            out.flush();
         }
 
         // 构建消息，准备存入数据库中
@@ -137,25 +156,6 @@ public class ChatService {
         return reply.toString();
     }
 
-
-    // 根据用户问题生成会话标题
-    public String getTitle(String message){
-        OpenAiChatModel model = OpenAiChatModel.builder()
-                .apiKey(apiKey)
-                .baseUrl(baseUrl)
-                .modelName(modelName)
-                .build();
-        // 提示词模板
-        String templete = "请根据用户以下的问题生成一个会话标题，注意需要严格限制字数在8个中文字以内！用户问题为:{{problem}} ";
-        PromptTemplate promptTemplate = PromptTemplate.from(templete);
-        // 填充变量(这里应该是用户自己输入的)
-        Map<String, Object> variables = new HashMap<>();
-        variables.put("problem", message);
-        // 生成提示题
-        Prompt prompt = promptTemplate.apply(variables);
-        // 发起请求，并返回
-        return model.chat(prompt.text());
-    }
 
     // 异步生成标题
     public CompletableFuture<String> getTitleAsync(String message){
@@ -177,6 +177,82 @@ public class ChatService {
             return model.chat(prompt.text());
         });
     }
+
+    // 异步生成路线对象
+    public CompletableFuture<String> getDailyRoutes(String reply){
+        return CompletableFuture.supplyAsync(() -> {
+
+            // 构建 JSON Schema
+            JsonSchemaElement root = JsonObjectSchema.builder()
+                    .description("完整的路线规划")
+                    .addProperty("dailyRoutes", JsonArraySchema.builder()
+                            .description("多天的路线规划数组")
+                            .items(JsonObjectSchema.builder()
+                                    .description("某一天的路线规划")
+                                    .addProperty("points", JsonArraySchema.builder()
+                                            .description("当天的多个地点")
+                                            .items(JsonObjectSchema.builder()
+                                                    .description("某一地点/景点的属性信息")
+                                                    .addStringProperty("keyword", "地点名/景点名")
+                                                    .addStringProperty("city", "所属城市")
+                                                    .build())
+                                            .build())
+                                    .build())
+                            .build())
+                    .build();
+
+            // 构建 JSON Schema
+            ResponseFormat responseFormat = ResponseFormat.builder()
+                    .type(JSON)
+                    .jsonSchema(JsonSchema.builder()
+                            .name("RoutePlanner")
+                            .rootElement(root)
+                            .build())
+                    .build();
+
+            // 构建模型
+            OpenAiChatModel model = OpenAiChatModel.builder()
+                    .apiKey(apiKey)
+                    .baseUrl(baseUrl)
+                    .responseFormat(ResponseFormat.builder().type(JSON).build())
+                    .modelName(modelName)
+                    .build();
+
+            // 提示词模板
+            String template = """
+                        ## 角色与任务
+                        你是一个智能助手，我需要你基于一段旅游攻略，对其生成一个结构化对象，以表示多天内的路线途径点。
+                        请注意，一定要注意其顺序性，各个地点之间的顺序必须严格遵守原文。
+
+       
+                        ## 当前输入旅游攻略
+                        {{reply}}
+                    """;
+
+            PromptTemplate promptTemplate = PromptTemplate.from(template);
+            // 填充变量(这里应该是用户自己输入的)
+            Map<String, Object> variables = new HashMap<>();
+            variables.put("reply", reply);
+            // 生成提示题
+            Prompt prompt = promptTemplate.apply(variables);
+            // 构建请求
+            ChatRequest chatRequest = ChatRequest.builder()
+                    .responseFormat(responseFormat)
+                    .messages(new UserMessage(prompt.text()))
+                    .build();
+            // 发起请求，并返回
+            ChatResponse chatResponse = model.chat(chatRequest);
+
+            System.out.println(reply);
+            System.out.println(chatResponse.aiMessage().text());
+
+            return chatResponse.aiMessage().text();
+        });
+    }
+
+
+
+
 
     /**
      * 获取会话历史
@@ -201,7 +277,8 @@ public class ChatService {
 
         List<SessionDTO> dtoList = new ArrayList<>();
         for (Session s : list) {
-            SessionDTO dto = new SessionDTO(s.getSessionId(), s.getModifyTime().toString(), s.getTitle());
+            // 裁剪传输字段，只保留有用的部分
+            SessionDTO dto = new SessionDTO(s.getSessionId(), s.getModifyTime().toString(), s.getTitle(), s.getDailyRoutes());
             dtoList.add(dto);
         }
 

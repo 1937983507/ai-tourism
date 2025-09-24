@@ -10,7 +10,7 @@ public interface SessionMapper {
 
     @Insert("INSERT INTO t_ai_assistant_sessions(session_id, user_name, title) " +
             "VALUES(#{sessionId}, #{userName}, #{title})")
-    int insert(Session session);
+    int insert(Session sessionId);
 
     @Select("SELECT * FROM t_ai_assistant_sessions WHERE session_id = #{sessionId}")
     Session findBySessionId(String sessionId);
@@ -20,4 +20,8 @@ public interface SessionMapper {
 
     @Select("SELECT COUNT(*) FROM t_ai_assistant_sessions")
     int count();
+
+    @Update("UPDATE t_ai_assistant_sessions SET daily_routes = #{dailyRoutes} WHERE session_id = #{sessionId} ")
+    void updateRoutine(@Param("dailyRoutes") String dailyRoutes, @Param("sessionId") String sessionId);
+
 }
