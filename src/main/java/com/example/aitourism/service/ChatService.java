@@ -1,23 +1,18 @@
 package com.example.aitourism.service;
 
 import com.example.aitourism.dto.*;
-import com.example.aitourism.entity.ChatMessage;
+import com.example.aitourism.entity.Message;
 import com.example.aitourism.entity.Session;
 import com.example.aitourism.mapper.ChatMessageMapper;
 import com.example.aitourism.mapper.SessionMapper;
-import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.response.ChatResponse;
-import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
-import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.TokenStream;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
 
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -68,7 +63,7 @@ public class ChatService {
         }
 
         // 保存用户消息
-        ChatMessage userMsg = new ChatMessage();
+        Message userMsg = new Message();
         userMsg.setMsgId(UUID.randomUUID().toString());
         userMsg.setSessionId(sessionId);
         userMsg.setUserName("default_user");
@@ -78,15 +73,15 @@ public class ChatService {
         chatMessageMapper.insert(userMsg);
 
         // LLM 回复的内容
-        final StringBuilder reply = new StringBuilder("");
+        final StringBuilder reply = new StringBuilder();
 
         if(!stream){
-            // System.out.println("非流式返回");
-            reply.append(assistantService.chat(messages));
+             System.out.println("非流式返回");
+             reply.append("这是针对[").append(messages).append("]的返回内容");
         }else{
-            // System.out.println("流式返回");
+             System.out.println("流式返回");
 
-            TokenStream tokenStream = assistantService.chat_Stream(messages);
+            TokenStream tokenStream = assistantService.chat_Stream(sessionId, messages);
 
             // Set response type for event-stream
             response.setContentType("text/event-stream");
@@ -107,7 +102,6 @@ public class ChatService {
                         );
                         // 拼接LLM回复字符串
                         reply.append(token.replace("\n", "\\n"));
-//                        System.out.println(tokenData);
                         out.write(tokenData);
                         out.flush();
                     })
@@ -124,7 +118,7 @@ public class ChatService {
         }
 
         // 构建消息，准备存入数据库中
-        ChatMessage assistantMsg = new ChatMessage();
+        Message assistantMsg = new Message();
         assistantMsg.setMsgId(UUID.randomUUID().toString());
         assistantMsg.setSessionId(sessionId);
         assistantMsg.setUserName("assistant");
@@ -142,9 +136,9 @@ public class ChatService {
      * 获取会话历史
      */
     public List<ChatMessageDTO> getHistory(String sessionId) {
-        List<ChatMessage> messages = chatMessageMapper.findBySessionId(sessionId);
+        List<Message> messages = chatMessageMapper.findBySessionId(sessionId);
         List<ChatMessageDTO> result = new ArrayList<>();
-        for (ChatMessage m : messages) {
+        for (Message m : messages) {
             ChatMessageDTO dto = new ChatMessageDTO(m.getMsgId(), m.getRole(), m.getContent());
             result.add(dto);
         }

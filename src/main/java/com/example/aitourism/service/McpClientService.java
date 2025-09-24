@@ -34,7 +34,7 @@ public class McpClientService {
     private McpClient createMcpClient(McpConfig.McpClientConfig config) {
         McpTransport transport = new HttpMcpTransport.Builder()
                 .sseUrl(config.getSseUrl())
-                .timeout(Duration.ofSeconds(30))
+                .timeout(Duration.ofSeconds(60))
                 .logRequests(config.isLogRequests())
                 .logResponses(config.isLogResponses())
                 .build();

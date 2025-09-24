@@ -23,27 +23,27 @@ public class ChatController {
     /**
      * 发起对话
      */
-    @PostMapping("/chat")
-    public ApiResponse<String> chat(@RequestBody ChatRequest request) throws Exception {
-        // 简单的参数校验
-        if(request.getSessionId()==null){
-            System.out.println("400");
-            return ApiResponse.error(400, "缺少请求参数 session_id");
-        }
-        if(request.getMessages()==null){
-            System.out.println("400");
-            return ApiResponse.error(400, "缺少请求参数 messages");
-        }
-
-        try {
-            // 调用业务层进行聊天逻辑
-            String reply = chatService.chat(request.getSessionId(), request.getMessages(), false, null);
-            return ApiResponse.success(reply);
-        } catch (Exception e) {
-            // 捕获所有其他异常，返回通用错误码和消息
-            return ApiResponse.error(500, "内部服务器出错: " + e.getMessage());
-        }
-    }
+//    @PostMapping("/chat")
+//    public ApiResponse<String> chat(@RequestBody ChatRequest request) throws Exception {
+//        // 简单的参数校验
+//        if(request.getSessionId()==null){
+//            System.out.println("400");
+//            return ApiResponse.error(400, "缺少请求参数 session_id");
+//        }
+//        if(request.getMessages()==null){
+//            System.out.println("400");
+//            return ApiResponse.error(400, "缺少请求参数 messages");
+//        }
+//
+//        try {
+//            // 调用业务层进行聊天逻辑
+//            String reply = chatService.chat(request.getSessionId(), request.getMessages(), false, null);
+//            return ApiResponse.success(reply);
+//        } catch (Exception e) {
+//            // 捕获所有其他异常，返回通用错误码和消息
+//            return ApiResponse.error(500, "内部服务器出错: " + e.getMessage());
+//        }
+//    }
 
     /**
      * 发起流式对话
