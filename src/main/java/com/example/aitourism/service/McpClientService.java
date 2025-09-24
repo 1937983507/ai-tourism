@@ -39,6 +39,14 @@ public class McpClientService {
                 .logResponses(config.isLogResponses())
                 .build();
 
+        // TODO 支持Stdio模式的MCP服务
+        // 官方示例： https://docs.langchain4j.info/tutorials/mcp
+//        McpTransport transport = new StdioMcpTransport.Builder()
+//                .command(List.of("/usr/bin/npm", "exec", "@modelcontextprotocol/server-everything@0.6.2"))
+//                .logEvents(true)
+//                .build();
+
+
         return new DefaultMcpClient.Builder()
                 .transport(transport)
                 .build();
