@@ -75,7 +75,7 @@ public class AssistantService {
         }
     }
 
-    public StringBuilder chat(String message) {
+    public String chat(String message) {
         // 延迟初始化，确保在第一次使用时创建
         if (assistant == null) {
             init();
@@ -110,6 +110,6 @@ public class AssistantService {
 
         TokenStream chat_Stream(String userMessage);
 
-        StringBuilder chat(String userMessage);
+        String chat(String userMessage);
     }
 }

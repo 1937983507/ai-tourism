@@ -15,38 +15,11 @@ spring:
     ansi:
       enabled: ALWAYS
 
-#
-#  ai:
-#    dashscope:
-#      # 需要替换为你自己的 key
-#      api-key: xxxx
-#      chat:
-#        options:
-#          model: qwen-plus
-#    ollama:
-#      base-url: http://localhost:11434
-#      chat:
-#        model: deepseek-r1:1.5b
-#    mcp:
-#      client:
-#        enabled: true
-#        name: my-mcp-client
-#        version: 1.0.0
-#        request-timeout: 30s
-#        type: SYNC
-#        sse:
-#          connections:
-#            server1:
-#              url: http://localhost:8290
-#        stdio:
-#          servers-configuration: classpath:mcp-servers.json
-
-
 # MCP服务配置
 mcp:
   clients:
     - name: "amap"
-      sse-url: "https://mcp.amap.com/sse?key=a7a5be837d1645cd49c74a601187bc35"
+      sse-url: "https://mcp.amap.com/sse?key=xxx"
       log-requests: true
       log-responses: true
       connect-timeout: 30s
@@ -60,7 +33,7 @@ mcp:
 
 # OpenAI配置
 openai:
-  api-key: "sk-O5VvgPh3jH19zSE0wkxXwVz6P715WDlPwONNiHd7XOcJLTb6"
+  api-key: "xxx"
   base-url: "https://api.chatanywhere.tech/v1"
   model-name: "gpt-4o-mini"
 

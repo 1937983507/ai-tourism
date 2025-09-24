@@ -25,6 +25,16 @@ public class ChatController {
      */
     @PostMapping("/chat")
     public ApiResponse<String> chat(@RequestBody ChatRequest request) throws Exception {
+        // 简单的参数校验
+        if(request.getSessionId()==null){
+            System.out.println("400");
+            return ApiResponse.error(400, "缺少请求参数 session_id");
+        }
+        if(request.getMessages()==null){
+            System.out.println("400");
+            return ApiResponse.error(400, "缺少请求参数 messages");
+        }
+
         try {
             // 调用业务层进行聊天逻辑
             String reply = chatService.chat(request.getSessionId(), request.getMessages(), false, null);
@@ -40,6 +50,16 @@ public class ChatController {
      */
     @PostMapping("/chat-stream")
     public ApiResponse<String> chat_stream(@RequestBody ChatRequest request, HttpServletResponse response) throws Exception {
+        // 简单的参数校验
+        if(request.getSessionId()==null){
+            System.out.println("400");
+            return ApiResponse.error(400, "缺少请求参数 session_id");
+        }
+        if(request.getMessages()==null){
+            System.out.println("400");
+            return ApiResponse.error(400, "缺少请求参数 messages");
+        }
+
         try {
             // 调用业务层进行聊天逻辑
             String reply = chatService.chat(request.getSessionId(), request.getMessages(), true, response);
@@ -55,6 +75,12 @@ public class ChatController {
      */
     @PostMapping("/get_history")
     public ApiResponse<List<ChatMessageDTO>> getHistory(@RequestBody ChatHistoryRequest request) {
+        // 简单的参数校验
+        if(request.getSessionId()==null){
+            System.out.println("400");
+            return ApiResponse.error(400, "缺少请求参数 session_id");
+        }
+
         try {
             // 调用业务层
             return ApiResponse.success(chatService.getHistory(request.getSessionId()));
@@ -69,6 +95,16 @@ public class ChatController {
      */
     @PostMapping("/session_list")
     public ApiResponse<SessionListResponse> sessionList(@RequestBody SessionListRequest request) {
+        // 简单的参数校验
+        if(request.getPage()==null){
+            System.out.println("400");
+            return ApiResponse.error(400, "缺少请求参数 page");
+        }
+        if(request.getPageSize()==null){
+            System.out.println("400");
+            return ApiResponse.error(400, "缺少请求参数 page_size");
+        }
+
         try {
             // 调用业务层
             return ApiResponse.success(chatService.getSessionList(request.getPage(), request.getPageSize()));
