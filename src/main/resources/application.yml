@@ -15,6 +15,43 @@ spring:
     ansi:
       enabled: ALWAYS
 
+# MCP服务配置
+mcp:
+  clients:
+    - name: "amap"
+      sse-url: "https://mcp.amap.com/sse?key=xxx"
+      log-requests: true
+      log-responses: true
+      connect-timeout: 30s
+      read-timeout: 120s
+    - name: "local"
+      sse-url: "http://localhost:3000/sse"
+      log-requests: true
+      log-responses: true
+      connect-timeout: 30s
+      read-timeout: 120s
+
+# OpenAI配置
+openai:
+  api-key: "xxx"
+  base-url: "https://api.chatanywhere.tech/v1"
+  model-name: "gpt-4o-mini"
+
+# HTTP客户端配置
+http:
+  client:
+    connect-timeout: 30000
+    read-timeout: 120000
+    max-connections: 100
+    keep-alive-duration: 300000
+
+# 应用配置
+app:
+  mcp:
+    health-check-interval: 300000  # 5分钟
+    retry-attempts: 3
+    retry-delay: 5000
+
 
 # MyBatis 写数据库
 mybatis:

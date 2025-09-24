@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ChatMessage {
+public class Message {
     private String msgId;
     private String sessionId;
     private String userName;
@@ -18,4 +18,7 @@ public class ChatMessage {
     private String title;
     private LocalDateTime createTime;
     private LocalDateTime modifyTime;
+
+
+
 }
