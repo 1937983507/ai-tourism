@@ -81,10 +81,10 @@ public class ChatService {
         final StringBuilder reply = new StringBuilder("");
 
         if(!stream){
-            System.out.println("非流式返回");
+            // System.out.println("非流式返回");
             reply.append(assistantService.chat(messages));
         }else{
-            System.out.println("流式返回");
+            // System.out.println("流式返回");
 
             TokenStream tokenStream = assistantService.chat_Stream(messages);
 
