@@ -1,8 +1,9 @@
 package com.example.aitourism.controller;
 
 import com.example.aitourism.dto.*;
-import com.example.aitourism.service.AssistantService;
 import com.example.aitourism.service.ChatService;
+import com.example.aitourism.service.impl.AssistantService;
+
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,27 +47,32 @@ public class ChatController {
 //    }
 
     /**
-     * 发起流式对话
+     * 发起流式对话（SSE）
      */
-    @PostMapping("/chat-stream")
-    public ApiResponse<String> chat_stream(@RequestBody ChatRequest request, HttpServletResponse response) throws Exception {
+    @PostMapping(value = "/chat-stream", produces = "text/event-stream")
+    public void chat_stream(@RequestBody ChatRequest request, HttpServletResponse response) throws Exception {
         // 简单的参数校验
         if(request.getSessionId()==null){
             System.out.println("400");
-            return ApiResponse.error(400, "缺少请求参数 session_id");
+            response.setStatus(400);
+            return;
         }
         if(request.getMessages()==null){
             System.out.println("400");
-            return ApiResponse.error(400, "缺少请求参数 messages");
+            response.setStatus(400);
+            return;
         }
 
         try {
             // 调用业务层进行聊天逻辑
-            String reply = chatService.chat(request.getSessionId(), request.getMessages(), true, response);
-            return ApiResponse.success(reply);
+            chatService.chat(request.getSessionId(), request.getMessages(), true, response);
         } catch (Exception e) {
             // 捕获所有其他异常，返回通用错误码和消息
-            return ApiResponse.error(500, "内部服务器出错: " + e.getMessage());
+            response.setStatus(500);
+            try {
+                response.getWriter().write("data: {\"error\":\"内部服务器出错\"}\n\n");
+                response.getWriter().flush();
+            } catch (Exception ignored) {}
         }
     }
 
