@@ -8,11 +8,11 @@ import java.util.List;
 
 public interface ChatService {
 
-    String chat(String sessionId, String messages, Boolean stream, HttpServletResponse response) throws Exception;
+    String chat(String sessionId, String messages, String userId, Boolean stream, HttpServletResponse response) throws Exception;
 
     List<ChatMessageDTO> getHistory(String sessionId);
 
-    SessionListResponse getSessionList(Integer page, Integer pageSize);
+    SessionListResponse getSessionList(Integer page, Integer pageSize, String userId);
 }
 
 

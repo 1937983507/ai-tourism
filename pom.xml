@@ -117,9 +117,24 @@
 			<version>1.5.0-beta11</version>
 		</dependency>
 
+
+
+		<!-- Sa-Token for Spring Boot 3 -->
 		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-webflux</artifactId>
+			<groupId>cn.dev33</groupId>
+			<artifactId>sa-token-spring-boot3-starter</artifactId>
+			<version>1.38.0</version>
+		</dependency>
+		<!-- Sa-Token JWT plugin -->
+		<dependency>
+			<groupId>cn.dev33</groupId>
+			<artifactId>sa-token-jwt</artifactId>
+			<version>1.38.0</version>
+		</dependency>
+		<!-- Password encoder (BCrypt) -->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-crypto</artifactId>
 		</dependency>
 
 	</dependencies>
@@ -159,14 +174,6 @@
 			</releases>
 			<snapshots>
 				<enabled>true</enabled>
-			</snapshots>
-		</repository>
-		<repository>
-			<id>spring-milestones</id>
-			<name>Spring Milestones</name>
-			<url>https://repo.spring.io/libs-milestone-local</url>
-			<snapshots>
-				<enabled>false</enabled>
 			</snapshots>
 		</repository>
 	</repositories>

@@ -82,3 +82,16 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%highlight(%-5level)] [%thread] [%X{traceId}] %-5level %logger{36}:%line - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%highlight(%-5level)] [%thread] [%X{traceId}] %-5level %logger{36}:%line - %msg%n"
+
+# Sa-Token & JWT 配置
+sa-token:
+  token-name: Authorization
+  is-read-cookie: false
+  is-read-body: false
+  is-read-header: true
+  token-prefix: Bearer
+  timeout: 7200
+  active-timeout: -1
+  is-share: false
+  is-log: false
+  jwt-secret-key: "please-change-me-very-strong"

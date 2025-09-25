@@ -55,7 +55,7 @@ public class ChatServiceImpl implements ChatService {
     private String modelName;
 
     @Override
-    public String chat(String sessionId, String messages, Boolean stream, HttpServletResponse response) throws Exception {
+    public String chat(String sessionId, String messages, String userId, Boolean stream, HttpServletResponse response) throws Exception {
         log.info("用户的问题是：{}", messages);
 
         // 在请求 LLM 前确保 Assistant 与 MCP 工具就绪
@@ -72,6 +72,7 @@ public class ChatServiceImpl implements ChatService {
             session.setSessionId(sessionId);
             session.setUserName("default_user");
             session.setTitle(title.length() > 10 ? title.substring(0, 10) : title);
+            session.setUserId(userId);
             sessionMapper.insert(session);
         }
 
@@ -87,10 +88,10 @@ public class ChatServiceImpl implements ChatService {
         final StringBuilder reply = new StringBuilder();
 
         if(!stream){
-             System.out.println("非流式返回");
+             log.info("非流式返回");
              reply.append("这是针对[").append(messages).append("]的返回内容");
         }else{
-             System.out.println("流式返回");
+            log.info("流式返回");
 
             TokenStream tokenStream = assistantService.chat_Stream(sessionId, messages);
 
@@ -272,9 +273,9 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public SessionListResponse getSessionList(Integer page, Integer pageSize) {
+    public SessionListResponse getSessionList(Integer page, Integer pageSize, String userId) {
         int offset = (page - 1) * pageSize;
-        List<Session> list = sessionMapper.findAll(offset, pageSize);
+        List<Session> list = sessionMapper.findByUserId(offset, pageSize, userId);
         int total = sessionMapper.count();
 
         List<SessionDTO> dtoList = new ArrayList<>();
@@ -288,6 +289,9 @@ public class ChatServiceImpl implements ChatService {
         resp.setPage(page);
         resp.setPageSize(pageSize);
         resp.setTotal(total);
+
+        System.out.println("返回的sessionList："+resp);
+
         return resp;
     }
 }

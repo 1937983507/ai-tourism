@@ -13,4 +13,5 @@ import lombok.NoArgsConstructor;
 public class SessionListRequest {
     private Integer page;
     private Integer pageSize;
+    private String userId;
 }
