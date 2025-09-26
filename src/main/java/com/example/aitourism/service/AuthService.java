@@ -3,6 +3,8 @@ package com.example.aitourism.service;
 import java.util.Map;
 
 public interface AuthService {
+
+    
     Map<String, Object> login(String phone, String password);
     String register(String phone, String password, String nickname);
     Map<String, Object> me();

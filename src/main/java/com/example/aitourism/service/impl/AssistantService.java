@@ -56,6 +56,19 @@ public class AssistantService {
 
     @Value("${mcp.max-history-messages:6}")
     private Integer maxHistoryMessages;
+    
+    /**
+     * MCP工具结果裁剪的最大长度配置
+     * 免费API对模型输入有4096 token上限，这里设置为2000字符作为安全边界
+     */
+    @Value("${mcp.result-truncation.max-length:2000}")
+    private int maxMcpResultLength;
+    
+    /**
+     * 是否启用MCP工具结果裁剪功能
+     */
+    @Value("${mcp.result-truncation.enabled:true}")
+    private boolean mcpTruncationEnabled;
 
     private final McpClientService mcpClientService;
 
@@ -80,6 +93,12 @@ public class AssistantService {
                 .modelName(modelName)
                 .maxTokens(maxOutputTokens)
                 .build();
+        // 包一层裁剪代理，防止输入超限
+        streamingModel = ModelTrimmingProxies.wrapStreaming(
+                streamingModel,
+                true,
+                maxMcpResultLength
+        );
         log.info("创建model成功");
 
         try {

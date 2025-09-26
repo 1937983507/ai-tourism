@@ -23,6 +23,16 @@ spring:
 mcp:
   heartbeat-interval-seconds: 300       # 5分钟
   ping-timeout-seconds: 5
+  # MCP工具结果裁剪配置
+  result-truncation:
+    enabled: true                       # 是否启用结果裁剪功能
+    max-length: 2000                    # 最大结果长度（字符数），考虑免费API的4096 token限制
+    smart-truncation: true              # 是否启用智能裁剪（在自然断点处截断）
+    preserve-structure: true            # 是否保持JSON等结构化数据的完整性
+    # 裁剪策略配置
+    strategy: "smart"                   # 裁剪策略：smart(智能), simple(简单), summary(摘要)
+    # 不同工具的不同裁剪长度限制（格式：工具名:长度,工具名:长度）
+    tool-specific-limits: "baidu_search:1500,fetchJuejinArticle:1000"
   clients:
     - name: "amap"
       sse-url: "https://mcp.amap.com/sse?key=a7a5be837d1645cd49c74a601187bc35"
