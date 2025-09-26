@@ -25,7 +25,6 @@ public interface Assistant{
                 - 工具调用的结果必须进行严格裁剪，只保留与问题直接相关的要点，避免粘贴过长文本。
                 - 限制每次工具返回的项目数量：景点列表≤8项；每项简述≤30字。
                 - 禁止调用 fetchJuejinArticle，除非 URL 确认属于 juejin.cn 且包含 /post/ 路径。
-                - 汇总回答时总字数力求控制在 400 字以内；必要时使用要点列举。
             """)
     TokenStream chat_Stream(@MemoryId String memoryId, @dev.langchain4j.service.UserMessage String userMessage);
 
