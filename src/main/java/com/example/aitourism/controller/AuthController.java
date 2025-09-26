@@ -2,10 +2,9 @@ package com.example.aitourism.controller;
 
 import com.example.aitourism.dto.ApiResponse;
 import cn.dev33.satoken.annotation.SaCheckPermission;
-import cn.dev33.satoken.annotation.SaCheckRole;
 import com.example.aitourism.service.AuthService;
 import org.springframework.web.bind.annotation.*;
-import cn.dev33.satoken.stp.StpUtil;
+import com.example.aitourism.util.Constants;
 import java.util.Map;
 
 @RestController
@@ -26,14 +25,14 @@ public class AuthController {
             return ApiResponse.success(authService.login(phone, password));
         } catch (RuntimeException e) {
             String msg = e.getMessage();
-            int code = 5000;
+            int code = Constants.ERROR_CODE_SERVER_ERROR;
             if (msg != null && msg.matches("^\\d{4}:.*")) {
                 code = Integer.parseInt(msg.substring(0, 4));
                 msg = msg.substring(6);
             }
             return ApiResponse.error(code, msg != null ? msg : "服务端错误");
         } catch (Exception e) {
-            return ApiResponse.error(5000, "服务端错误");
+            return ApiResponse.error(Constants.ERROR_CODE_SERVER_ERROR, "服务端错误");
         }
     }
 
@@ -47,14 +46,14 @@ public class AuthController {
             return ApiResponse.success(Map.of("user_id", userId));
         } catch (RuntimeException e) {
             String msg = e.getMessage();
-            int code = 5000;
+            int code = Constants.ERROR_CODE_SERVER_ERROR;
             if (msg != null && msg.matches("^\\d{4}:.*")) {
                 code = Integer.parseInt(msg.substring(0, 4));
                 msg = msg.substring(6);
             }
             return ApiResponse.error(code, msg != null ? msg : "服务端错误");
         } catch (Exception e) {
-            return ApiResponse.error(5000, "服务端错误");
+            return ApiResponse.error(Constants.ERROR_CODE_SERVER_ERROR, "服务端错误");
         }
     }
 
@@ -64,14 +63,14 @@ public class AuthController {
             return ApiResponse.success(authService.me());
         } catch (RuntimeException e) {
             String msg = e.getMessage();
-            int code = 5000;
+            int code = Constants.ERROR_CODE_SERVER_ERROR;
             if (msg != null && msg.matches("^\\d{4}:.*")) {
                 code = Integer.parseInt(msg.substring(0, 4));
                 msg = msg.substring(6);
             }
             return ApiResponse.error(code, msg != null ? msg : "服务端错误");
         } catch (Exception e) {
-            return ApiResponse.error(5000, "服务端错误");
+            return ApiResponse.error(Constants.ERROR_CODE_SERVER_ERROR, "服务端错误");
         }
     }
 
@@ -82,14 +81,14 @@ public class AuthController {
             return ApiResponse.success(authService.refresh(refreshToken));
         } catch (RuntimeException e) {
             String msg = e.getMessage();
-            int code = 5000;
+            int code = Constants.ERROR_CODE_SERVER_ERROR;
             if (msg != null && msg.matches("^\\d{4}:.*")) {
                 code = Integer.parseInt(msg.substring(0, 4));
                 msg = msg.substring(6);
             }
             return ApiResponse.error(code, msg != null ? msg : "服务端错误");
         } catch (Exception e) {
-            return ApiResponse.error(5000, "服务端错误");
+            return ApiResponse.error(Constants.ERROR_CODE_SERVER_ERROR, "服务端错误");
         }
     }
 

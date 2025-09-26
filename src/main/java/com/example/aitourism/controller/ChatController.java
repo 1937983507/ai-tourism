@@ -1,17 +1,19 @@
 package com.example.aitourism.controller;
 
-import com.example.aitourism.dto.*;
+import com.example.aitourism.dto.ApiResponse;
+import com.example.aitourism.dto.ChatHistoryRequest;
+import com.example.aitourism.dto.ChatMessageDTO;
+import com.example.aitourism.dto.ChatRequest;
+import com.example.aitourism.dto.SessionListRequest;
+import com.example.aitourism.dto.SessionListResponse;
+import com.example.aitourism.service.ChatService;
+import com.example.aitourism.util.Constants;
+import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletResponse;
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckPermission;
-import com.example.aitourism.service.ChatService;
-import com.example.aitourism.service.impl.AssistantService;
 
-import jakarta.servlet.http.HttpServletResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.*;
 import java.util.List;
-import cn.dev33.satoken.stp.StpUtil;
 
 @RestController
 @RequestMapping("/ai_assistant")
@@ -34,18 +36,15 @@ public class ChatController {
     public void chat_stream(@RequestBody ChatRequest request, HttpServletResponse response) throws Exception {
         // 简单的参数校验
         if(request.getSessionId()==null){
-            System.out.println("400");
-            response.setStatus(400);
+            response.setStatus(Constants.ERROR_CODE_BAD_REQUEST);
             return;
         }
         if(request.getMessages()==null){
-            System.out.println("400");
-            response.setStatus(400);
+            response.setStatus(Constants.ERROR_CODE_BAD_REQUEST);
             return;
         }
         if(request.getUserId()==null){
-            System.out.println("400");
-            response.setStatus(400);
+            response.setStatus(Constants.ERROR_CODE_BAD_REQUEST);
             return;
         }
 
@@ -54,7 +53,7 @@ public class ChatController {
             chatService.chat(request.getSessionId(), request.getMessages(), request.getUserId(), true, response);
         } catch (Exception e) {
             // 捕获所有其他异常，返回通用错误码和消息
-            response.setStatus(500);
+            response.setStatus(Constants.ERROR_CODE_SERVER_ERROR);
             try {
                 response.getWriter().write("data: {\"error\":\"内部服务器出错\"}\n\n");
                 response.getWriter().flush();
@@ -71,8 +70,7 @@ public class ChatController {
     public ApiResponse<List<ChatMessageDTO>> getHistory(@RequestBody ChatHistoryRequest request) {
         // 简单的参数校验
         if(request.getSessionId()==null){
-            System.out.println("400");
-            return ApiResponse.error(400, "缺少请求参数 session_id");
+            return ApiResponse.error(Constants.ERROR_CODE_BAD_REQUEST, "缺少请求参数 session_id");
         }
 
         try {
@@ -80,7 +78,7 @@ public class ChatController {
             return ApiResponse.success(chatService.getHistory(request.getSessionId()));
         } catch (Exception e) {
             // 捕获所有其他异常，返回通用错误码和消息
-            return ApiResponse.error(500, "内部服务器出错: " + e.getMessage());
+            return ApiResponse.error(Constants.ERROR_CODE_SERVER_ERROR, "内部服务器出错: " + e.getMessage());
         }
     }
 
@@ -93,16 +91,13 @@ public class ChatController {
     public ApiResponse<SessionListResponse> sessionList(@RequestBody SessionListRequest request) {
         // 简单的参数校验
         if(request.getPage()==null){
-            System.out.println("400");
-            return ApiResponse.error(400, "缺少请求参数 page");
+            return ApiResponse.error(Constants.ERROR_CODE_BAD_REQUEST, "缺少请求参数 page");
         }
         if(request.getPageSize()==null){
-            System.out.println("400");
-            return ApiResponse.error(400, "缺少请求参数 page_size");
+            return ApiResponse.error(Constants.ERROR_CODE_BAD_REQUEST, "缺少请求参数 page_size");
         }
         if(request.getUserId()==null){
-            System.out.println("400");
-            return ApiResponse.error(400, "缺少请求参数 user_id");
+            return ApiResponse.error(Constants.ERROR_CODE_BAD_REQUEST, "缺少请求参数 user_id");
         }        
 
         try {
@@ -110,7 +105,7 @@ public class ChatController {
             return ApiResponse.success(chatService.getSessionList(request.getPage(), request.getPageSize(), request.getUserId()));
         } catch (Exception e) {
             // 捕获所有其他异常，返回通用错误码和消息
-            return ApiResponse.error(500, "内部服务器出错: " + e.getMessage());
+            return ApiResponse.error(Constants.ERROR_CODE_SERVER_ERROR, "内部服务器出错: " + e.getMessage());
         }
     }
 }

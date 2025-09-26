@@ -1,18 +1,16 @@
 package com.example.aitourism.service.impl;
 
-import cn.dev33.satoken.SaManager;
-import cn.dev33.satoken.stp.StpUtil;
-import cn.dev33.satoken.util.SaResult;
-import lombok.extern.slf4j.Slf4j;
-
-import com.example.aitourism.entity.RefreshToken;
 import com.example.aitourism.entity.User;
-import com.example.aitourism.mapper.RefreshTokenMapper;
-import com.example.aitourism.mapper.RoleMapper;
 import com.example.aitourism.mapper.UserMapper;
+import com.example.aitourism.mapper.RoleMapper;
+import com.example.aitourism.mapper.RefreshTokenMapper;
 import com.example.aitourism.service.AuthService;
+import com.example.aitourism.entity.RefreshToken;
+import com.example.aitourism.util.Constants;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import cn.dev33.satoken.stp.StpUtil;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -38,11 +36,11 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public Map<String, Object> login(String phone, String password) {
         User user = userMapper.findByPhone(phone);
-        if (user == null || user.getStatus() == 0) {
-            throw new RuntimeException("1001: 账号或密码错误");
+        if (user == null || user.getStatus() == Constants.USER_STATUS_INACTIVE) {
+            throw new RuntimeException(Constants.ERROR_CODE_ACCOUNT_OR_PASSWORD_INVALID + ": 账号或密码错误");
         }
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
-            throw new RuntimeException("1001: 账号或密码错误");
+            throw new RuntimeException(Constants.ERROR_CODE_ACCOUNT_OR_PASSWORD_INVALID + ": 账号或密码错误");
         }
         StpUtil.login(user.getUserId());
         String token = StpUtil.getTokenValue();
