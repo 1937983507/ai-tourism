@@ -1,5 +1,6 @@
 package com.example.aitourism.dto;
 
+import com.example.aitourism.util.Constants;
 import lombok.Data;
 
 /**
@@ -25,11 +26,11 @@ public class ApiResponse<T> {
     }
 
     public static <T> ApiResponse<T> success(T data) {
-        return new ApiResponse<>(0, "ok", data);
+        return new ApiResponse<>(Constants.STATUS_SUCCESS, "ok", data);
     }
 
     public static <T> ApiResponse<T> success() {
-        return new ApiResponse<>(0, "ok", null);
+        return new ApiResponse<>(Constants.STATUS_SUCCESS, "ok", null);
     }
 
     public static <T> ApiResponse<T> error(int code, String msg) {
