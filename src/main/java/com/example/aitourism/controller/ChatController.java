@@ -24,36 +24,12 @@ public class ChatController {
         this.chatService = chatService;
     }
 
-    /**
-     * 发起对话
-     */
-//    @PostMapping("/chat")
-//    public ApiResponse<String> chat(@RequestBody ChatRequest request) throws Exception {
-//        // 简单的参数校验
-//        if(request.getSessionId()==null){
-//            System.out.println("400");
-//            return ApiResponse.error(400, "缺少请求参数 session_id");
-//        }
-//        if(request.getMessages()==null){
-//            System.out.println("400");
-//            return ApiResponse.error(400, "缺少请求参数 messages");
-//        }
-//
-//        try {
-//            // 调用业务层进行聊天逻辑
-//            String reply = chatService.chat(request.getSessionId(), request.getMessages(), false, null);
-//            return ApiResponse.success(reply);
-//        } catch (Exception e) {
-//            // 捕获所有其他异常，返回通用错误码和消息
-//            return ApiResponse.error(500, "内部服务器出错: " + e.getMessage());
-//        }
-//    }
 
     /**
      * 发起流式对话（SSE）
      */
-    // @SaCheckLogin
-    // @SaCheckPermission("ai:chat")
+    @SaCheckLogin
+    @SaCheckPermission("ai:chat")
     @PostMapping(value = "/chat-stream", produces = "text/event-stream")
     public void chat_stream(@RequestBody ChatRequest request, HttpServletResponse response) throws Exception {
         // 简单的参数校验
@@ -89,8 +65,8 @@ public class ChatController {
     /**
      * 获取会话历史
      */
-    // @SaCheckLogin
-    // @SaCheckPermission("ai:history")
+    @SaCheckLogin
+    @SaCheckPermission("ai:history")
     @PostMapping("/get_history")
     public ApiResponse<List<ChatMessageDTO>> getHistory(@RequestBody ChatHistoryRequest request) {
         // 简单的参数校验
@@ -111,8 +87,8 @@ public class ChatController {
     /**
      * 获取所有历史会话
      */
-    // @SaCheckLogin
-    // @SaCheckPermission("ai:session")
+    @SaCheckLogin
+    @SaCheckPermission("ai:session")
     @PostMapping("/session_list")
     public ApiResponse<SessionListResponse> sessionList(@RequestBody SessionListRequest request) {
         // 简单的参数校验

@@ -67,6 +67,7 @@ public class AuthServiceImpl implements AuthService {
         result.put("refresh_token", rt.getRefreshToken());
         result.put("refresh_expires_in", 2592000);
         result.put("user", userInfo);
+        log.info("登陆成功，返回：" + result);
         return result;
     }
 
