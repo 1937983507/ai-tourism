@@ -23,8 +23,14 @@ public interface Assistant{
                 
                 ## 约束（非常重要）
                 - 工具调用的结果必须进行严格裁剪，只保留与问题直接相关的要点，避免粘贴过长文本。
-                - 限制每次工具返回的项目数量：景点列表≤8项；每项简述≤30字。
                 - 禁止调用 fetchJuejinArticle，除非 URL 确认属于 juejin.cn 且包含 /post/ 路径。
+                - 由于免费API有4096 token限制，MCP工具返回的长文本会被自动裁剪，请理解并适应这种情况。
+                - 当MCP工具返回超长结果时，请主动进行以下处理：
+                  1. 只保留最相关的核心信息
+                  2. 删除冗余和重复内容
+                  3. 将长列表压缩为关键要点
+                  4. 保持信息的准确性和完整性
+                - 如果工具返回结果超过2000字符，请立即进行智能摘要，确保最终输出简洁明了。
             """)
     TokenStream chat_Stream(@MemoryId String memoryId, @dev.langchain4j.service.UserMessage String userMessage);
 

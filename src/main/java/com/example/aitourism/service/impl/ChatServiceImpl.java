@@ -192,7 +192,11 @@ public class ChatServiceImpl implements ChatService {
             String template = "请根据用户以下的问题生成一个会话标题，注意需要严格限制字数在8个中文字以内！用户问题为:{{problem}} ";
             PromptTemplate promptTemplate = PromptTemplate.from(template);
             Map<String, Object> variables = new HashMap<>();
-            variables.put("problem", message);
+            String trimmed = message;
+            if (trimmed != null && trimmed.length() > 4000) {
+                trimmed = trimmed.substring(0, 4000);
+            }
+            variables.put("problem", trimmed);
             Prompt prompt = promptTemplate.apply(variables);
             return model.chat(prompt.text());
         });
@@ -259,9 +263,13 @@ public class ChatServiceImpl implements ChatService {
             Map<String, Object> variables = new HashMap<>();
             variables.put("reply", reply);
             Prompt prompt = promptTemplate.apply(variables);
+            String promptText = prompt.text();
+            if (promptText != null && promptText.length() > 4000) {
+                promptText = promptText.substring(0, 4000);
+            }
             ChatRequest chatRequest = ChatRequest.builder()
                     .responseFormat(responseFormat)
-                    .messages(new UserMessage(prompt.text()))
+                    .messages(new UserMessage(promptText))
                     .build();
             ChatResponse chatResponse = model.chat(chatRequest);
 
