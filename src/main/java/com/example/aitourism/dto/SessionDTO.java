@@ -14,4 +14,5 @@ public class SessionDTO {
     private String sessionId;
     private String lastTime;
     private String title;
+    private String dailyRoutes;
 }

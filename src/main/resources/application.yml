@@ -14,28 +14,33 @@ spring:
   output:
     ansi:
       enabled: ALWAYS
+  task:
+    scheduling:
+      pool:
+        size: 1
 
 # MCP服务配置
 mcp:
+  heartbeat-interval-seconds: 300       # 5分钟
+  ping-timeout-seconds: 5
   clients:
     - name: "amap"
-      sse-url: "https://mcp.amap.com/sse?key=xxx"
+      sse-url: "https://mcp.amap.com/sse?key=a7a5be837d1645cd49c74a601187bc35"
       log-requests: true
       log-responses: true
-      connect-timeout: 30s
-      read-timeout: 120s
-    - name: "local"
-      sse-url: "http://localhost:3000/sse"
-      log-requests: true
-      log-responses: true
-      connect-timeout: 30s
-      read-timeout: 120s
+      timeout-seconds: 600
+    # - name: "local"
+    #   sse-url: "http://localhost:3000/sse"
+    #   log-requests: true
+    #   log-responses: true
+    #   timeout-seconds: 600
 
 # OpenAI配置
 openai:
-  api-key: "xxx"
+  api-key: "sk-O5VvgPh3jH19zSE0wkxXwVz6P715WDlPwONNiHd7XOcJLTb6"
   base-url: "https://api.chatanywhere.tech/v1"
   model-name: "gpt-4o-mini"
+  max-output-tokens: 800
 
 # HTTP客户端配置
 http:
@@ -77,3 +82,17 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%highlight(%-5level)] [%thread] [%X{traceId}] %-5level %logger{36}:%line - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%highlight(%-5level)] [%thread] [%X{traceId}] %-5level %logger{36}:%line - %msg%n"
+
+
+# Sa-Token & JWT 配置
+sa-token:
+  token-name: Authorization
+  is-read-cookie: false
+  is-read-body: false
+  is-read-header: true
+  token-prefix: Bearer
+  timeout: 300   # 10分钟过期，然后前端会refresh刷新
+  active-timeout: -1
+  is-share: false
+  is-log: true
+  jwt-secret-key: "please-change-me-very-strong"
