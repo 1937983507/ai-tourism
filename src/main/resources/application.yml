@@ -1,6 +1,6 @@
 server:
   # 端口
-  port: 8080
+  port: 8290
 
 # 连接数据库
 spring:
