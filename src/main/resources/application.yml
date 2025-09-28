@@ -1,6 +1,6 @@
 server:
   # 端口
-  port: 8080
+  port: 8290
 
 # 连接数据库
 spring:
@@ -44,6 +44,9 @@ mcp:
     #   log-requests: true
     #   log-responses: true
     #   timeout-seconds: 600
+
+openweather:
+  api-key: "7ca6918502f4ea2ef64568da06916c0f"
 
 # OpenAI配置
 openai:

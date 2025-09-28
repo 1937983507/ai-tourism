@@ -30,6 +30,7 @@ import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.data.message.ChatMessage;
 
 import com.example.aitourism.service.Assistant;
+import com.example.aitourism.tool.WeatherTool;
 
 import java.util.List;
 import java.util.UUID;
@@ -105,8 +106,9 @@ public class AssistantService {
             assistant = AiServices.builder(Assistant.class)
                     .streamingChatModel(streamingModel)
                     .chatMemoryProvider(memoryId -> MessageWindowChatMemory.withMaxMessages(maxHistoryMessages))
-//                    .chatMemoryProvider(chatMemoryProvider)
-                    .toolProvider(mcpClientService.createToolProvider())
+                    // .chatMemoryProvider(chatMemoryProvider)  // 自定义记忆能力。
+                    .tools(new WeatherTool())
+                    // .toolProvider(mcpClientService.createToolProvider())
                     .build();
             log.info("创建assistant成功");
         } catch (Exception e) {
