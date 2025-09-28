@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.regex.Pattern;
 
 /**
- * MCP工具结果裁剪工具类
+ * MCP 工具结果裁剪工具类
  * 用于限制MCP工具返回结果的长度，避免超出LLM的token限制
  * 免费API对模型输入有4096 token上限，所以需要对MCP工具返回结果进行裁剪
  */
