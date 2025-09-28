@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ChatMessageDTO {
+public class ChatHistoryDTO {
     private String msgId;
     private String role;   // user 或 assistant
     private String content;

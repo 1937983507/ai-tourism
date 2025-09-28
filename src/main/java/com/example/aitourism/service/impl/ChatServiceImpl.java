@@ -113,6 +113,10 @@ public class ChatServiceImpl implements ChatService {
                                 esc, "stop", modelName
                         );
                         reply.append(esc);
+
+//                        System.out.println(esc);
+//                        System.out.println(tokenData);
+
                         out.write(tokenData);
                         out.flush();
                     })
@@ -281,14 +285,19 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public List<ChatMessageDTO> getHistory(String sessionId) {
+    public ChatHistoryResponse getHistory(String sessionId) {
         List<Message> messages = chatMessageMapper.findBySessionId(sessionId);
-        List<ChatMessageDTO> result = new ArrayList<>();
+        List<ChatHistoryDTO> result = new ArrayList<>();
         for (Message m : messages) {
-            ChatMessageDTO dto = new ChatMessageDTO(m.getMsgId(), m.getRole(), m.getContent());
+            ChatHistoryDTO dto = new ChatHistoryDTO(m.getMsgId(), m.getRole(), m.getContent());
             result.add(dto);
         }
-        return result;
+
+        ChatHistoryResponse resp = new ChatHistoryResponse();
+        resp.setHistoryList(result);
+        resp.setTotal(result.size());
+
+        return resp;
     }
 
     @Override

@@ -1,11 +1,6 @@
 package com.example.aitourism.controller;
 
-import com.example.aitourism.dto.ApiResponse;
-import com.example.aitourism.dto.ChatHistoryRequest;
-import com.example.aitourism.dto.ChatMessageDTO;
-import com.example.aitourism.dto.ChatRequest;
-import com.example.aitourism.dto.SessionListRequest;
-import com.example.aitourism.dto.SessionListResponse;
+import com.example.aitourism.dto.*;
 import com.example.aitourism.service.ChatService;
 import com.example.aitourism.util.Constants;
 import org.springframework.web.bind.annotation.*;
@@ -62,12 +57,12 @@ public class ChatController {
     }
 
     /**
-     * 获取会话历史
+     * 获取当前会话历史
      */
     @SaCheckLogin
     @SaCheckPermission("ai:history")
     @PostMapping("/get_history")
-    public ApiResponse<List<ChatMessageDTO>> getHistory(@RequestBody ChatHistoryRequest request) {
+    public ApiResponse<ChatHistoryResponse> getHistory(@RequestBody ChatHistoryRequest request) {
         // 简单的参数校验
         if(request.getSessionId()==null){
             return ApiResponse.error(Constants.ERROR_CODE_BAD_REQUEST, "缺少请求参数 session_id");
