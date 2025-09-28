@@ -1,4 +1,4 @@
-package com.example.aitourism.dto;
+package com.example.aitourism.dto.chat;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

@@ -1,14 +1,13 @@
 package com.example.aitourism.controller;
 
 import com.example.aitourism.dto.*;
+import com.example.aitourism.dto.chat.*;
 import com.example.aitourism.service.ChatService;
 import com.example.aitourism.util.Constants;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletResponse;
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckPermission;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/ai_assistant")
@@ -62,18 +61,18 @@ public class ChatController {
     @SaCheckLogin
     @SaCheckPermission("ai:history")
     @PostMapping("/get_history")
-    public ApiResponse<ChatHistoryResponse> getHistory(@RequestBody ChatHistoryRequest request) {
+    public BaseResponse<ChatHistoryResponse> getHistory(@RequestBody ChatHistoryRequest request) {
         // 简单的参数校验
         if(request.getSessionId()==null){
-            return ApiResponse.error(Constants.ERROR_CODE_BAD_REQUEST, "缺少请求参数 session_id");
+            return BaseResponse.error(Constants.ERROR_CODE_BAD_REQUEST, "缺少请求参数 session_id");
         }
 
         try {
             // 调用业务层
-            return ApiResponse.success(chatService.getHistory(request.getSessionId()));
+            return BaseResponse.success(chatService.getHistory(request.getSessionId()));
         } catch (Exception e) {
             // 捕获所有其他异常，返回通用错误码和消息
-            return ApiResponse.error(Constants.ERROR_CODE_SERVER_ERROR, "内部服务器出错: " + e.getMessage());
+            return BaseResponse.error(Constants.ERROR_CODE_SERVER_ERROR, "内部服务器出错: " + e.getMessage());
         }
     }
 
@@ -83,24 +82,24 @@ public class ChatController {
     @SaCheckLogin
     @SaCheckPermission("ai:session")
     @PostMapping("/session_list")
-    public ApiResponse<SessionListResponse> sessionList(@RequestBody SessionListRequest request) {
+    public BaseResponse<SessionListResponse> sessionList(@RequestBody SessionListRequest request) {
         // 简单的参数校验
         if(request.getPage()==null){
-            return ApiResponse.error(Constants.ERROR_CODE_BAD_REQUEST, "缺少请求参数 page");
+            return BaseResponse.error(Constants.ERROR_CODE_BAD_REQUEST, "缺少请求参数 page");
         }
         if(request.getPageSize()==null){
-            return ApiResponse.error(Constants.ERROR_CODE_BAD_REQUEST, "缺少请求参数 page_size");
+            return BaseResponse.error(Constants.ERROR_CODE_BAD_REQUEST, "缺少请求参数 page_size");
         }
         if(request.getUserId()==null){
-            return ApiResponse.error(Constants.ERROR_CODE_BAD_REQUEST, "缺少请求参数 user_id");
+            return BaseResponse.error(Constants.ERROR_CODE_BAD_REQUEST, "缺少请求参数 user_id");
         }        
 
         try {
             // 调用业务层
-            return ApiResponse.success(chatService.getSessionList(request.getPage(), request.getPageSize(), request.getUserId()));
+            return BaseResponse.success(chatService.getSessionList(request.getPage(), request.getPageSize(), request.getUserId()));
         } catch (Exception e) {
             // 捕获所有其他异常，返回通用错误码和消息
-            return ApiResponse.error(Constants.ERROR_CODE_SERVER_ERROR, "内部服务器出错: " + e.getMessage());
+            return BaseResponse.error(Constants.ERROR_CODE_SERVER_ERROR, "内部服务器出错: " + e.getMessage());
         }
     }
 }

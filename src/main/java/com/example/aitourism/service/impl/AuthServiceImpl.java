@@ -1,5 +1,8 @@
 package com.example.aitourism.service.impl;
 
+import com.example.aitourism.dto.user.LoginResponse;
+import com.example.aitourism.dto.user.RefreshTokenResponse;
+import com.example.aitourism.dto.user.UserInfoResponse;
 import com.example.aitourism.entity.User;
 import com.example.aitourism.mapper.UserMapper;
 import com.example.aitourism.mapper.RoleMapper;
@@ -13,9 +16,7 @@ import org.springframework.stereotype.Service;
 import cn.dev33.satoken.stp.StpUtil;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -34,7 +35,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public Map<String, Object> login(String phone, String password) {
+    public LoginResponse login(String phone, String password) {
         User user = userMapper.findByPhone(phone);
         if (user == null || user.getStatus() == Constants.USER_STATUS_INACTIVE) {
             throw new RuntimeException(Constants.ERROR_CODE_ACCOUNT_OR_PASSWORD_INVALID + ": 账号或密码错误");
@@ -54,19 +55,20 @@ public class AuthServiceImpl implements AuthService {
         rt.setExpireAt(LocalDateTime.now().plusDays(30));
         refreshTokenMapper.insert(rt);
 
-        Map<String, Object> userInfo = new HashMap<>();
-        userInfo.put("user_id", user.getUserId());
-        userInfo.put("nickname", user.getNickname());
-        userInfo.put("avatar", user.getAvatar());
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("token", token);
-        result.put("expires_in", 7200);
-        result.put("refresh_token", rt.getRefreshToken());
-        result.put("refresh_expires_in", 2592000);
-        result.put("user", userInfo);
-        log.info("登陆成功，返回：" + result);
-        return result;
+        LoginResponse.UserInfo userInfo = new LoginResponse.UserInfo();
+        userInfo.setUser_id(user.getUserId());
+        userInfo.setNickname(user.getNickname());
+        userInfo.setAvatar(user.getAvatar());
+        
+        LoginResponse response = new LoginResponse();
+        response.setToken(token);
+        response.setExpires_in(7200L);
+        response.setRefresh_token(rt.getRefreshToken());
+        response.setRefresh_expires_in(2592000L);
+        response.setUser(userInfo);
+        
+        log.info("登陆成功，返回：" + response);
+        return response;
     }
 
     @Override
@@ -88,24 +90,26 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public Map<String, Object> me() {
+    public UserInfoResponse me() {
         String userId = (String) StpUtil.getLoginIdDefaultNull();
         if (userId == null) {
             throw new RuntimeException("1101: 未认证或 token 失效");
         }
         User user = userMapper.findByUserId(userId);
         List<String> roles = roleMapper.findRoleCodesByUserId(userId);
-        Map<String, Object> data = new HashMap<>();
-        data.put("user_id", user.getUserId());
-        data.put("phone", user.getPhone());
-        data.put("nickname", user.getNickname());
-        data.put("avatar", user.getAvatar());
-        data.put("roles", roles);
-        return data;
+        
+        UserInfoResponse response = new UserInfoResponse();
+        response.setUser_id(user.getUserId());
+        response.setPhone(user.getPhone());
+        response.setNickname(user.getNickname());
+        response.setAvatar(user.getAvatar());
+        response.setRoles(roles);
+        
+        return response;
     }
 
     @Override
-    public Map<String, Object> refresh(String refreshToken) {
+    public RefreshTokenResponse refresh(String refreshToken) {
         RefreshToken rt = refreshTokenMapper.findByToken(refreshToken);
         if (rt == null || rt.getExpireAt().isBefore(LocalDateTime.now())) {
             throw new RuntimeException("1101: 未认证或 token 失效");
@@ -113,10 +117,12 @@ public class AuthServiceImpl implements AuthService {
         // 重新签发访问令牌
         StpUtil.login(rt.getUserId());
         String token = StpUtil.getTokenValue();
-        Map<String, Object> result = new HashMap<>();
-        result.put("token", token);
-        result.put("expires_in", 7200);
-        return result;
+        
+        RefreshTokenResponse response = new RefreshTokenResponse();
+        response.setToken(token);
+        response.setExpires_in(7200L);
+        
+        return response;
     }
 
     @Override

@@ -1,6 +1,9 @@
 package com.example.aitourism.service.impl;
 
-import com.example.aitourism.dto.*;
+import com.example.aitourism.dto.chat.ChatHistoryDTO;
+import com.example.aitourism.dto.chat.ChatHistoryResponse;
+import com.example.aitourism.dto.chat.SessionDTO;
+import com.example.aitourism.dto.chat.SessionListResponse;
 import com.example.aitourism.entity.Message;
 import com.example.aitourism.entity.Session;
 import com.example.aitourism.mapper.ChatMessageMapper;

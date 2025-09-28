@@ -1,11 +1,8 @@
 package com.example.aitourism.service;
 
-import com.example.aitourism.dto.ChatHistoryDTO;
-import com.example.aitourism.dto.ChatHistoryResponse;
-import com.example.aitourism.dto.SessionListResponse;
+import com.example.aitourism.dto.chat.ChatHistoryResponse;
+import com.example.aitourism.dto.chat.SessionListResponse;
 import jakarta.servlet.http.HttpServletResponse;
-
-import java.util.List;
 
 public interface ChatService {
 
