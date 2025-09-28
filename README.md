@@ -1,6 +1,6 @@
 # AI 智能旅游规划助手（后端）
 
-> 访问地址：[http://your-server-address.com](http://your-server-address.com)  
+> 访问地址：[https://www.aitrip.chat/](https://www.aitrip.chat/)  
 > 欢迎体验智能旅游规划服务！
 
 ## 📖 项目简介
