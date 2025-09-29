@@ -1,7 +1,11 @@
 package com.example.aitourism.ai;
 
+import com.example.aitourism.ai.guardrail.PromptSafetyInputGuardrail;
+import com.example.aitourism.ai.guardrail.RetryOutputGuardrail;
 import com.example.aitourism.ai.mcp.McpClientService;
 import com.example.aitourism.ai.truncator.ModelTrimmingProxies;
+import com.example.aitourism.exception.InputValidationException;
+
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.service.AiServices;
@@ -90,6 +94,8 @@ public class AssistantServiceFactory {
                     // .chatMemoryProvider(chatMemoryProvider)  // 自定义记忆能力。
                     .tools(new WeatherTool())
                     // .toolProvider(mcpClientService.createToolProvider())
+                    .inputGuardrails(new PromptSafetyInputGuardrail()) // 添加输入护轨
+//                    .outputGuardrails(new RetryOutputGuardrail())  // 输出护轨，流式输出下似乎会失效
                     .build();
             log.info("创建assistant成功");
         } catch (Exception e) {
@@ -147,6 +153,7 @@ public class AssistantServiceFactory {
         // if (assistantService == null) {
         //       init_stream();
         // }
+        
        // 每一次请求都创建
        init_stream();
 
@@ -155,9 +162,18 @@ public class AssistantServiceFactory {
             // 开始发起流式请求
             return assistantService.chat_Stream(memoryId, message);
         } catch (Exception e) {
-            // 可以在这里添加重试逻辑
+            // 捕获输入校验相关异常，抛出自定义异常
+            String msg = e.getMessage();
             log.error("大模型请求报错：" + e.getMessage(), e);
-            throw new RuntimeException("Chat service unavailable", e);
+            if (msg != null && (
+                    msg.contains("输入包含不当内容") ||
+                    msg.contains("输入内容过长") ||
+                    msg.contains("输入内容不能为空") ||
+                    msg.contains("检测到恶意输入")
+            )) {
+                throw new InputValidationException(msg);
+            }
+            throw new RuntimeException("聊天服务不可用", e);
         }
     }
 

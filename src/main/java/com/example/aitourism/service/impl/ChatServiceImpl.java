@@ -7,6 +7,7 @@ import com.example.aitourism.dto.chat.SessionDTO;
 import com.example.aitourism.dto.chat.SessionListResponse;
 import com.example.aitourism.entity.Message;
 import com.example.aitourism.entity.Session;
+import com.example.aitourism.exception.InputValidationException;
 import com.example.aitourism.mapper.ChatMessageMapper;
 import com.example.aitourism.mapper.SessionMapper;
 import com.example.aitourism.service.ChatService;
@@ -181,6 +182,10 @@ public class ChatServiceImpl implements ChatService {
     private String refineErrorMessage(Throwable error) {
         if (error == null) {
             return "服务暂不可用，请稍后重试";
+        }
+        // 输入校验异常直接返回原始消息
+        if (error instanceof InputValidationException) {
+            return error.getMessage();
         }
         String msg = String.valueOf(error.getMessage());
         if (msg != null && (msg.contains("免费API限制模型输入token小于4096") || msg.contains("prompt tokens") || msg.contains("4096") || msg.contains("FORBIDDEN"))) {
