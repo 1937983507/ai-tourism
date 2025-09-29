@@ -1,5 +1,6 @@
 package com.example.aitourism.service.impl;
 
+import com.example.aitourism.ai.AssistantServiceFactory;
 import com.example.aitourism.dto.chat.ChatHistoryDTO;
 import com.example.aitourism.dto.chat.ChatHistoryResponse;
 import com.example.aitourism.dto.chat.SessionDTO;
@@ -42,12 +43,12 @@ public class ChatServiceImpl implements ChatService {
 
     private final ChatMessageMapper chatMessageMapper;
     private final SessionMapper sessionMapper;
-    private final AssistantService assistantService;
+    private final AssistantServiceFactory assistantServiceFactory;
 
-    public ChatServiceImpl(ChatMessageMapper chatMessageMapper, SessionMapper sessionMapper, AssistantService assistantService) {
+    public ChatServiceImpl(ChatMessageMapper chatMessageMapper, SessionMapper sessionMapper, AssistantServiceFactory assistantServiceFactory) {
         this.chatMessageMapper = chatMessageMapper;
         this.sessionMapper = sessionMapper;
-        this.assistantService = assistantService;
+        this.assistantServiceFactory = assistantServiceFactory;
     }
 
     @Value("${openai.api-key}")
@@ -63,10 +64,10 @@ public class ChatServiceImpl implements ChatService {
     public String chat(String sessionId, String messages, String userId, Boolean stream, HttpServletResponse response) throws Exception {
         log.info("用户的问题是：{}", messages);
 
-        // 在请求 LLM 前确保 Assistant 与 MCP 工具就绪
-        boolean ready = assistantService.ensureReady();
+        // 在请求 LLM 前确保 AssistantService 与 MCP 工具就绪
+        boolean ready = assistantServiceFactory.ensureReady();
         if (!ready) {
-            throw new RuntimeException("Assistant/MCP 工具不可用，请稍后重试");
+            throw new RuntimeException("AssistantService/MCP 工具不可用，请稍后重试");
         }
 
         String title = messages;
@@ -98,7 +99,7 @@ public class ChatServiceImpl implements ChatService {
         }else{
             log.info("流式返回");
 
-            TokenStream tokenStream = assistantService.chat_Stream(sessionId, messages);
+            TokenStream tokenStream = assistantServiceFactory.chat_Stream(sessionId, messages);
 
             response.setContentType("text/event-stream");
             response.setCharacterEncoding("UTF-8");

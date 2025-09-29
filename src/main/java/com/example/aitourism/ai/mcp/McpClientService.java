@@ -1,5 +1,6 @@
-package com.example.aitourism.service.impl;
+package com.example.aitourism.ai.mcp;
 
+import com.example.aitourism.ai.truncator.TruncatingToolProvider;
 import com.example.aitourism.config.McpConfig;
 import dev.langchain4j.mcp.client.DefaultMcpClient;
 import dev.langchain4j.mcp.client.McpClient;
@@ -67,7 +68,7 @@ public class McpClientService {
             log.info("启用MCP工具结果裁剪功能，最大长度限制: {} 字符", maxResultLength);
             Map<String, Integer> toolSpecificLimits = parseToolSpecificLimits();
             log.info("工具特定限制: {}", toolSpecificLimits);
-            return new com.example.aitourism.service.impl.TruncatingToolProvider(mcpClients, maxResultLength, toolSpecificLimits);
+            return new TruncatingToolProvider(mcpClients, maxResultLength, toolSpecificLimits);
         }
 
         // 否则使用基础的 MCP 工具提供者

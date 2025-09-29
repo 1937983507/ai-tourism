@@ -1,6 +1,5 @@
-package com.example.aitourism.service.impl;
+package com.example.aitourism.ai.truncator;
 
-import com.example.aitourism.util.McpResultTruncator;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;

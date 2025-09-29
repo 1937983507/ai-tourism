@@ -1,4 +1,4 @@
-package com.example.aitourism.service.impl;
+package com.example.aitourism.ai.memory;
 
 
 import com.example.aitourism.entity.Message;
