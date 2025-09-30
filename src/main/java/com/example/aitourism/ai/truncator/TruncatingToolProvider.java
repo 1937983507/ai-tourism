@@ -14,7 +14,7 @@ import java.util.Map;
 
 /**
  * 截断MCP工具执行的文本结果的ToolProvider包装器
- * 以避免超出模型令牌限制。它通过提供的mcpclient发现工具
+ * 以避免超出模型token限制。它通过提供的mcpclient发现工具
  * 并包装每个工具执行器以截断输出。
  */
 public class TruncatingToolProvider implements ToolProvider {

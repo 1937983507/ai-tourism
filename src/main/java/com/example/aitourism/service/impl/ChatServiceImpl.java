@@ -67,11 +67,11 @@ public class ChatServiceImpl implements ChatService {
     public String chat(String sessionId, String messages, String userId, Boolean stream, HttpServletResponse response) throws Exception {
         log.info("用户的问题是：{}", messages);
 
-        // 在请求 LLM 前确保 AssistantService 与 MCP 工具就绪
-        boolean ready = assistantServiceFactory.ensureReady();
-        if (!ready) {
-            throw new RuntimeException("AssistantService/MCP 工具不可用，请稍后重试");
-        }
+//        // 在请求 LLM 前确保 AssistantService 与 MCP 工具就绪
+//        boolean ready = assistantServiceFactory.ensureReady();
+//        if (!ready) {
+//            throw new RuntimeException("AssistantService/MCP 工具不可用，请稍后重试");
+//        }
 
         String title = messages;
 

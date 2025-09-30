@@ -2,7 +2,9 @@ package com.example.aitourism.ai;
 
 import com.example.aitourism.ai.guardrail.PromptSafetyInputGuardrail;
 import com.example.aitourism.ai.mcp.McpClientService;
+import com.example.aitourism.ai.tool.ToolManager;
 import com.example.aitourism.ai.tool.WeatherTool;
+import com.example.aitourism.exception.InputValidationException;
 import com.example.aitourism.mapper.ChatMessageMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -53,6 +55,7 @@ public class MemoryAssistantServiceFactory {
     private final ChatMemoryStore chatMemoryStore;
     
     private final ChatMessageMapper chatMessageMapper;
+    private final ToolManager toolManager;
 
 
     /**
@@ -139,9 +142,11 @@ public class MemoryAssistantServiceFactory {
         try {
             AssistantService assistantService = AiServices.builder(AssistantService.class)
                     .streamingChatModel(streamingModel)
-                     .tools(new WeatherTool())
-                    .toolProvider(mcpClientService.createToolProvider())
+                    .tools((Object[]) toolManager.getAllTools())
+                    // .tools(new WeatherTool())
+                    // .toolProvider(mcpClientService.createToolProvider())
                     .chatMemoryProvider(chatMemoryProvider::apply)
+                    .maxSequentialToolsInvocations(1)  // 最多连续调用 1 次工具
                     .inputGuardrails(new PromptSafetyInputGuardrail())
                     .build();
             
@@ -161,11 +166,30 @@ public class MemoryAssistantServiceFactory {
      */
     public TokenStream chatStream(String sessionId, String userId, String message) {
         log.info("开始流式对话，会话ID: {}, 用户ID: {}, 消息: {}", sessionId, userId, message);
+        // 对话前，首先去获取一下caffeine尝试获取AI Service实例，若是获取不到，则新建实例
         AssistantService assistantService = getAssistantService(sessionId, userId);
         log.info("获取或创建会话隔离的AI服务成功");
         log.info(assistantService.toString());
         String memoryId = sessionId;
-        return assistantService.chat_Stream(memoryId, message);
+
+        try {
+            log.info("开始向大模型发起请求，进行旅游规划");
+            // 开始发起流式请求
+            return assistantService.chat_Stream(memoryId, message);
+        } catch (Exception e) {
+            // 捕获输入校验相关异常，抛出自定义异常
+            String msg = e.getMessage();
+            log.error("大模型请求报错：" + e.getMessage(), e);
+            if (msg != null && (
+                    msg.contains("输入包含不当内容") ||
+                            msg.contains("输入内容过长") ||
+                            msg.contains("输入内容不能为空") ||
+                            msg.contains("检测到恶意输入")
+            )) {
+                throw new InputValidationException(msg);
+            }
+            throw new RuntimeException("聊天服务不可用", e);
+        }
     }
 
 
