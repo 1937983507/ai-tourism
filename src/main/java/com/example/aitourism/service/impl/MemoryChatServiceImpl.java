@@ -1,6 +1,7 @@
 package com.example.aitourism.service.impl;
 
-import com.example.aitourism.ai.AssistantServiceFactory;
+import com.example.aitourism.ai.MemoryAssistantServiceFactory;
+// import com.example.aitourism.ai.memory.EnhancedChatMemoryStoreService;
 import com.example.aitourism.dto.chat.ChatHistoryDTO;
 import com.example.aitourism.dto.chat.ChatHistoryResponse;
 import com.example.aitourism.dto.chat.SessionDTO;
@@ -11,15 +12,10 @@ import com.example.aitourism.exception.InputValidationException;
 import com.example.aitourism.mapper.ChatMessageMapper;
 import com.example.aitourism.mapper.SessionMapper;
 import com.example.aitourism.service.ChatService;
-import dev.langchain4j.model.chat.request.ResponseFormat;
-import dev.langchain4j.model.chat.request.json.JsonArraySchema;
+
 import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
-import dev.langchain4j.model.chat.request.json.JsonSchema;
 import dev.langchain4j.model.chat.request.json.JsonSchemaElement;
 import dev.langchain4j.model.chat.response.ChatResponse;
-import dev.langchain4j.model.input.Prompt;
-import dev.langchain4j.model.input.PromptTemplate;
-import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.rag.content.Content;
 import dev.langchain4j.service.TokenStream;
 import dev.langchain4j.service.tool.ToolExecution;
@@ -33,25 +29,39 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
+import dev.langchain4j.model.chat.request.json.JsonArraySchema;
+import dev.langchain4j.model.chat.request.json.JsonSchema;
+import dev.langchain4j.model.chat.request.ResponseFormat;
+import dev.langchain4j.model.chat.request.ResponseFormatType;
+import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.model.input.Prompt;
+import dev.langchain4j.model.input.PromptTemplate;
 import static dev.langchain4j.model.chat.request.ResponseFormatType.JSON;
-import static java.util.concurrent.TimeUnit.SECONDS;
-
 import dev.langchain4j.model.chat.request.ChatRequest;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import dev.langchain4j.data.message.UserMessage;
 
+/**
+ * 会话隔离的聊天服务实现
+ * 支持每个会话独立的AI服务和记忆管理
+ */
 @Service
 @Slf4j
-public class ChatServiceImpl implements ChatService {
+public class MemoryChatServiceImpl implements ChatService {
 
     private final ChatMessageMapper chatMessageMapper;
     private final SessionMapper sessionMapper;
-    private final AssistantServiceFactory assistantServiceFactory;
+    private final MemoryAssistantServiceFactory assistantServiceFactory;
 
-    public ChatServiceImpl(ChatMessageMapper chatMessageMapper, SessionMapper sessionMapper, AssistantServiceFactory assistantServiceFactory) {
+    public MemoryChatServiceImpl(
+            ChatMessageMapper chatMessageMapper, 
+            SessionMapper sessionMapper, 
+            MemoryAssistantServiceFactory assistantServiceFactory
+            ) {
         this.chatMessageMapper = chatMessageMapper;
         this.sessionMapper = sessionMapper;
         this.assistantServiceFactory = assistantServiceFactory;
+        // this.memoryStoreService = memoryStoreService;
     }
 
     @Value("${openai.api-key}")
@@ -65,44 +75,30 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public String chat(String sessionId, String messages, String userId, Boolean stream, HttpServletResponse response) throws Exception {
-        log.info("用户的问题是：{}", messages);
+        log.info("用户 {} 在会话 {} 中提问：{}", userId, sessionId, messages);
 
-        // 在请求 LLM 前确保 AssistantService 与 MCP 工具就绪
+        // 确保AI服务可用
         boolean ready = assistantServiceFactory.ensureReady();
         if (!ready) {
-            throw new RuntimeException("AssistantService/MCP 工具不可用，请稍后重试");
+            throw new RuntimeException("AI服务不可用，请稍后重试");
         }
 
-        String title = messages;
+        // 获取或创建会话
+        Session session = getOrCreateSession(sessionId, userId, messages);
 
-        Session session = sessionMapper.findBySessionId(sessionId);
-        if (session == null) {
-            session = new Session();
-            session.setSessionId(sessionId);
-            session.setUserName("default_user");
-            session.setTitle(title.length() > 10 ? title.substring(0, 10) : title);
-            session.setUserId(userId);
-            sessionMapper.insert(session);
-        }
-
-        Message userMsg = new Message();
-        userMsg.setMsgId(UUID.randomUUID().toString());
-        userMsg.setSessionId(sessionId);
-        userMsg.setUserName("default_user");
-        userMsg.setRole("user");
-        userMsg.setTitle(session.getTitle());
-        userMsg.setContent(messages);
-        chatMessageMapper.insert(userMsg);
+        // 保存用户消息到数据库
+        saveUserMessage(sessionId, userId, messages, session.getTitle());
 
         final StringBuilder reply = new StringBuilder();
 
-        if(!stream){
-             log.info("非流式返回");
-             reply.append("这是针对[").append(messages).append("]的返回内容");
-        }else{
-            log.info("流式返回");
-
-            TokenStream tokenStream = assistantServiceFactory.chat_Stream(sessionId, messages);
+        if (!stream) {
+            log.info("非流式返回");
+            reply.append("这是针对[").append(messages).append("]的返回内容");
+        } else {
+            log.info("流式返回 - 会话隔离模式");
+            
+            // 使用会话隔离的AI服务进行流式对话
+            TokenStream tokenStream = assistantServiceFactory.chatStream(sessionId, userId, messages);
 
             response.setContentType("text/event-stream");
             response.setCharacterEncoding("UTF-8");
@@ -121,14 +117,11 @@ public class ChatServiceImpl implements ChatService {
                         );
                         reply.append(esc);
 
-//                        System.out.println(esc);
-//                        System.out.println(tokenData);
-
                         out.write(tokenData);
                         out.flush();
                     })
-                    .onRetrieved((List<Content>contents)->log.info(contents.toString()))
-                    .onToolExecuted((ToolExecution toolExecution)->log.info(toolExecution.toString()))
+                    .onRetrieved((List<Content> contents) -> log.info("检索到的内容: {}", contents.toString()))
+                    .onToolExecuted((ToolExecution toolExecution) -> log.info("工具执行: {}", toolExecution.toString()))
                     .onCompleteResponse(futureResponse::complete)
                     .onError(error -> {
                         futureResponse.completeExceptionally(error);
@@ -153,17 +146,17 @@ public class ChatServiceImpl implements ChatService {
 
             out.write("data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n");
             out.flush();
-
         }
 
-        log.info("模型给出的路线规划：{}", reply);
+        log.info("AI回复：{}", reply);
         log.info("开始生成路线结构体对象");
 
-        CompletableFuture<String> dailyRoutesFuture  = getDailyRoutes(reply.toString());
+        // 异步生成路线结构
+        CompletableFuture<String> dailyRoutesFuture = getDailyRoutes(reply.toString());
         String dailyRoutes = dailyRoutesFuture.get(10, SECONDS);
-        log.info("模型给出的路线结构体对象："+dailyRoutes);
+        log.info("生成的路线结构：{}", dailyRoutes);
         
-        // 验证JSON格式是否正确
+        // 验证并保存路线数据
         if (validateDailyRoutesJson(dailyRoutes)) {
             sessionMapper.updateRoutine(dailyRoutes, sessionId);
             log.info("路线数据验证通过，已更新到数据库");
@@ -171,23 +164,130 @@ public class ChatServiceImpl implements ChatService {
             log.warn("路线数据格式验证失败，跳过数据库更新");
         }
 
+        // 保存AI回复到数据库
+        saveAssistantMessage(sessionId, userId, reply.toString(), session.getTitle());
+
+        return reply.toString();
+    }
+
+    /**
+     * 获取或创建会话
+     */
+    private Session getOrCreateSession(String sessionId, String userId, String messages) {
+        Session session = sessionMapper.findBySessionId(sessionId);
+        if (session == null) {
+            session = new Session();
+            session.setSessionId(sessionId);
+            session.setUserName("default_user");
+            session.setTitle(messages.length() > 10 ? messages.substring(0, 10) : messages);
+            session.setUserId(userId);
+            sessionMapper.insert(session);
+            log.info("创建新会话：{} 用户：{}", sessionId, userId);
+        }
+        return session;
+    }
+
+    /**
+     * 保存用户消息
+     */
+    private void saveUserMessage(String sessionId, String userId, String content, String title) {
+        Message userMsg = new Message();
+        userMsg.setMsgId(UUID.randomUUID().toString());
+        userMsg.setSessionId(sessionId);
+        userMsg.setUserName("default_user");
+        userMsg.setRole("user");
+        userMsg.setTitle(title);
+        userMsg.setContent(content);
+        chatMessageMapper.insert(userMsg);
+        log.debug("保存用户消息：会话 {} 用户 {}", sessionId, userId);
+    }
+
+    /**
+     * 保存AI回复
+     */
+    private void saveAssistantMessage(String sessionId, String userId, String content, String title) {
         Message assistantMsg = new Message();
         assistantMsg.setMsgId(UUID.randomUUID().toString());
         assistantMsg.setSessionId(sessionId);
         assistantMsg.setUserName("assistant");
         assistantMsg.setRole("assistant");
-        assistantMsg.setTitle(session.getTitle());
-        assistantMsg.setContent(reply.toString());
+        assistantMsg.setTitle(title);
+        assistantMsg.setContent(content);
         chatMessageMapper.insert(assistantMsg);
-
-        return reply.toString();
+        log.debug("保存AI回复：会话 {} 用户 {}", sessionId, userId);
     }
 
+    /**
+     * 清除会话记忆
+     */
+    public void clearSessionMemory(String sessionId, String userId) {
+        try {
+            // 清除AI服务缓存
+            assistantServiceFactory.clearSessionCache(sessionId, userId);
+            // 清除记忆存储
+            // 如需同时清数据库消息，可在此调用 mapper 删除
+            // chatMessageMapper.deleteBySessionId(sessionId);
+            log.info("清除会话 {} 用户 {} 的记忆", sessionId, userId);
+        } catch (Exception e) {
+            log.error("清除会话记忆失败：{}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 清除用户所有会话记忆
+     */
+    public void clearUserMemory(String userId) {
+        try {
+            // 清除用户所有AI服务缓存
+            assistantServiceFactory.clearUserCache(userId);
+            log.info("清除用户 {} 的所有记忆", userId);
+        } catch (Exception e) {
+            log.error("清除用户记忆失败：{}", e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public ChatHistoryResponse getHistory(String sessionId) {
+        List<Message> messages = chatMessageMapper.findBySessionId(sessionId);
+        List<ChatHistoryDTO> result = new ArrayList<>();
+        for (Message m : messages) {
+            ChatHistoryDTO dto = new ChatHistoryDTO(m.getMsgId(), m.getRole(), m.getContent());
+            result.add(dto);
+        }
+
+        ChatHistoryResponse resp = new ChatHistoryResponse();
+        resp.setHistoryList(result);
+        resp.setTotal(result.size());
+
+        return resp;
+    }
+
+    @Override
+    public SessionListResponse getSessionList(Integer page, Integer pageSize, String userId) {
+        int offset = (page - 1) * pageSize;
+        List<Session> list = sessionMapper.findByUserId(offset, pageSize, userId);
+        int total = sessionMapper.count();
+
+        List<SessionDTO> dtoList = new ArrayList<>();
+        for (Session s : list) {
+            SessionDTO dto = new SessionDTO(s.getSessionId(), s.getModifyTime().toString(), s.getTitle(), s.getDailyRoutes());
+            dtoList.add(dto);
+        }
+
+        SessionListResponse resp = new SessionListResponse();
+        resp.setSessionList(dtoList);
+        resp.setPage(page);
+        resp.setPageSize(pageSize);
+        resp.setTotal(total);
+
+        return resp;
+    }
+
+    // 以下方法保持原有实现...
     private String refineErrorMessage(Throwable error) {
         if (error == null) {
             return "服务暂不可用，请稍后重试";
         }
-        // 输入校验异常直接返回原始消息
         if (error instanceof InputValidationException) {
             return error.getMessage();
         }
@@ -198,27 +298,8 @@ public class ChatServiceImpl implements ChatService {
         return "对话服务暂时出现波动，请稍后再试";
     }
 
-    // 异步生成标题
-    private CompletableFuture<String> getTitleAsync(String message){
-        return CompletableFuture.supplyAsync(() -> {
-            OpenAiChatModel model = OpenAiChatModel.builder()
-                    .apiKey(apiKey)
-                    .baseUrl(baseUrl)
-                    .modelName(modelName)
-                    .build();
-            String template = "请根据用户以下的问题生成一个会话标题，注意需要严格限制字数在8个中文字以内！用户问题为:{{problem}} ";
-            PromptTemplate promptTemplate = PromptTemplate.from(template);
-            Map<String, Object> variables = new HashMap<>();
-            String trimmed = message;
-            if (trimmed != null && trimmed.length() > 4000) {
-                trimmed = trimmed.substring(0, 4000);
-            }
-            variables.put("problem", trimmed);
-            Prompt prompt = promptTemplate.apply(variables);
-            return model.chat(prompt.text());
-        });
-    }
-
+    
+    
     // 异步生成路线对象
     private CompletableFuture<String> getDailyRoutes(String reply){
         return CompletableFuture.supplyAsync(() -> {
@@ -297,140 +378,24 @@ public class ChatServiceImpl implements ChatService {
         });
     }
 
-    @Override
-    public ChatHistoryResponse getHistory(String sessionId) {
-        List<Message> messages = chatMessageMapper.findBySessionId(sessionId);
-        List<ChatHistoryDTO> result = new ArrayList<>();
-        for (Message m : messages) {
-            ChatHistoryDTO dto = new ChatHistoryDTO(m.getMsgId(), m.getRole(), m.getContent());
-            result.add(dto);
-        }
 
-        ChatHistoryResponse resp = new ChatHistoryResponse();
-        resp.setHistoryList(result);
-        resp.setTotal(result.size());
-
-        return resp;
-    }
-
-    @Override
-    public SessionListResponse getSessionList(Integer page, Integer pageSize, String userId) {
-        int offset = (page - 1) * pageSize;
-        List<Session> list = sessionMapper.findByUserId(offset, pageSize, userId);
-        int total = sessionMapper.count();
-
-        List<SessionDTO> dtoList = new ArrayList<>();
-        for (Session s : list) {
-            SessionDTO dto = new SessionDTO(s.getSessionId(), s.getModifyTime().toString(), s.getTitle(), s.getDailyRoutes());
-            dtoList.add(dto);
-        }
-
-        SessionListResponse resp = new SessionListResponse();
-        resp.setSessionList(dtoList);
-        resp.setPage(page);
-        resp.setPageSize(pageSize);
-        resp.setTotal(total);
-
-        System.out.println("返回的sessionList："+resp);
-
-        return resp;
-    }
-
-    /**
-     * 验证JSON字符串是否符合预期的路线数据格式
-     * @param jsonString 待验证的JSON字符串
-     * @return true如果格式正确，false如果格式错误
-     */
+    // 检查生成的路线结构体对象是否格式正确
     private boolean validateDailyRoutesJson(String jsonString) {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode rootNode = objectMapper.readTree(jsonString);
-            
-            // 检查是否有dailyRoutes字段
-            if (!rootNode.has("dailyRoutes")) {
-                log.warn("JSON格式错误：缺少dailyRoutes字段");
+            if(rootNode.has("dailyRoutes")){
+                // 若有dailyRoutes字段，则检查其是否为数组
+                if(rootNode.get("dailyRoutes").isArray()){
+                    // 若是数组，再继续判断数组内元素是否大于0
+                    return rootNode.get("dailyRoutes").size() > 0;
+                }
                 return false;
             }
-            
-            JsonNode dailyRoutesNode = rootNode.get("dailyRoutes");
-            
-            // 检查dailyRoutes是否为数组
-            if (!dailyRoutesNode.isArray()) {
-                log.warn("JSON格式错误：dailyRoutes不是数组");
-                return false;
-            }
-            
-            // 检查dailyRoutes数组是否为空
-            if (dailyRoutesNode.size() == 0) {
-                log.warn("JSON格式错误：dailyRoutes数组为空");
-                return false;
-            }
-            
-            // 遍历dailyRoutes数组中的每个元素
-            for (JsonNode dayRoute : dailyRoutesNode) {
-                // 检查每个元素是否为对象
-                if (!dayRoute.isObject()) {
-                    log.warn("JSON格式错误：dailyRoutes数组中的元素不是对象");
-                    return false;
-                }
-                
-                // 检查是否有points字段
-                if (!dayRoute.has("points")) {
-                    log.warn("JSON格式错误：缺少points字段");
-                    return false;
-                }
-                
-                JsonNode pointsNode = dayRoute.get("points");
-                
-                // 检查points是否为数组
-                if (!pointsNode.isArray()) {
-                    log.warn("JSON格式错误：points不是数组");
-                    return false;
-                }
-                
-                // 检查points数组是否为空
-                if (pointsNode.size() == 0) {
-                    log.warn("JSON格式错误：points数组为空");
-                    return false;
-                }
-                
-                // 遍历points数组中的每个元素
-                for (JsonNode point : pointsNode) {
-                    // 检查每个point是否为对象
-                    if (!point.isObject()) {
-                        log.warn("JSON格式错误：points数组中的元素不是对象");
-                        return false;
-                    }
-                    
-                    // 检查是否有keyword和city字段
-                    if (!point.has("keyword") || !point.has("city")) {
-                        log.warn("JSON格式错误：point缺少keyword或city字段");
-                        return false;
-                    }
-                    
-                    // 检查keyword和city字段是否为字符串
-                    if (!point.get("keyword").isTextual() || !point.get("city").isTextual()) {
-                        log.warn("JSON格式错误：keyword或city字段不是字符串");
-                        return false;
-                    }
-                    
-                    // 检查字段值是否为空
-                    if (point.get("keyword").asText().trim().isEmpty() || 
-                        point.get("city").asText().trim().isEmpty()) {
-                        log.warn("JSON格式错误：keyword或city字段值为空");
-                        return false;
-                    }
-                }
-            }
-            
-            log.info("JSON格式验证通过");
-            return true;
-            
+            return false;
         } catch (Exception e) {
             log.error("JSON格式验证失败：{}", e.getMessage());
             return false;
         }
     }
 }
-
-

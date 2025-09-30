@@ -3,6 +3,7 @@ package com.example.aitourism.ai.guardrail;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.guardrail.InputGuardrail;
 import dev.langchain4j.guardrail.InputGuardrailResult;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.Arrays;
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.regex.Pattern;
 /**
  * Prompt 安全审查护轨，用于检测用户输入中的敏感词和提示注入攻击。
  */
+@Slf4j
 public class PromptSafetyInputGuardrail implements InputGuardrail {
 
     // 敏感词列表，包含不允许出现在用户输入中的词语或短语。
@@ -60,7 +62,7 @@ public class PromptSafetyInputGuardrail implements InputGuardrail {
                 return fatal("检测到恶意输入，请求被拒绝");
             }
         }
-        System.out.println("没有不当内容，通过校验");
+        log.info("没有不当内容，校验通过");
         // 校验通过
         return success();
     }

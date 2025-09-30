@@ -79,12 +79,12 @@ public class AssistantServiceFactory {
                 .modelName(modelName)
                 .maxTokens(maxOutputTokens)
                 .build();
-        // 包一层裁剪代理，防止输入超限
-        streamingModel = ModelTrimmingProxies.wrapStreaming(
-                streamingModel,
-                true,
-                maxMcpResultLength
-        );
+        // // 包一层裁剪代理，防止输入超限
+        // streamingModel = ModelTrimmingProxies.wrapStreaming(
+        //         streamingModel,
+        //         true,
+        //         maxMcpResultLength
+        // );
         log.info("创建model成功");
 
         try {

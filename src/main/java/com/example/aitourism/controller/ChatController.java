@@ -4,7 +4,10 @@ import com.example.aitourism.dto.*;
 import com.example.aitourism.dto.chat.*;
 import com.example.aitourism.exception.InputValidationException;
 import com.example.aitourism.service.ChatService;
+import com.example.aitourism.service.impl.MemoryChatServiceImpl;
 import com.example.aitourism.util.Constants;
+
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +22,7 @@ public class ChatController {
     private final ChatService chatService;
 
 
-    public ChatController(ChatService chatService) {
+    public ChatController(MemoryChatServiceImpl chatService) {
         this.chatService = chatService;
     }
 
@@ -66,6 +69,8 @@ public class ChatController {
             } catch (Exception ignored) {}
 
         } catch (Exception e) {
+            log.error("聊天服务异常: {}", e.getMessage(), e);
+            
             // 捕获所有其他异常，返回通用错误码和消息
             // response.setStatus(Constants.ERROR_CODE_SERVER_ERROR);
             response.setContentType("text/event-stream; charset=UTF-8");
