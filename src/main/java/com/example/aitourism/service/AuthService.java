@@ -1,14 +1,15 @@
 package com.example.aitourism.service;
 
-import java.util.Map;
+import com.example.aitourism.dto.user.LoginResponse;
+import com.example.aitourism.dto.user.RefreshTokenResponse;
+import com.example.aitourism.dto.user.UserInfoResponse;
 
 public interface AuthService {
 
-    
-    Map<String, Object> login(String phone, String password);
+    LoginResponse login(String phone, String password);
     String register(String phone, String password, String nickname);
-    Map<String, Object> me();
-    Map<String, Object> refresh(String refreshToken);
+    UserInfoResponse me();
+    RefreshTokenResponse refresh(String refreshToken);
     void logout();
 
     // Admin operations

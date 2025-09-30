@@ -1,6 +1,6 @@
-package com.example.aitourism.service.impl;
+package com.example.aitourism.ai.truncator;
 
-import com.example.aitourism.util.McpResultTruncator;
+import com.example.aitourism.ai.truncator.McpResultTruncator;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.mcp.client.McpClient;

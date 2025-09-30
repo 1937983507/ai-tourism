@@ -7,34 +7,34 @@ import lombok.Data;
  * 统一响应体
  */
 @Data
-public class ApiResponse<T> {
+public class BaseResponse<T> {
     private Integer code;
     private String msg;
     private T data;
 
-    public ApiResponse() {}
+    public BaseResponse() {}
 
-    public ApiResponse(int code, String msg) {
+    public BaseResponse(int code, String msg) {
         this.code = code;
         this.msg = msg;
     }
 
-    public ApiResponse(int code, String msg, T data) {
+    public BaseResponse(int code, String msg, T data) {
         this.code = code;
         this.msg = msg;
         this.data = data;
     }
 
-    public static <T> ApiResponse<T> success(T data) {
-        return new ApiResponse<>(Constants.STATUS_SUCCESS, "ok", data);
+    public static <T> BaseResponse<T> success(T data) {
+        return new BaseResponse<>(Constants.STATUS_SUCCESS, "ok", data);
     }
 
-    public static <T> ApiResponse<T> success() {
-        return new ApiResponse<>(Constants.STATUS_SUCCESS, "ok", null);
+    public static <T> BaseResponse<T> success() {
+        return new BaseResponse<>(Constants.STATUS_SUCCESS, "ok", null);
     }
 
-    public static <T> ApiResponse<T> error(int code, String msg) {
-        return new ApiResponse<>(code, msg, null);
+    public static <T> BaseResponse<T> error(int code, String msg) {
+        return new BaseResponse<>(code, msg, null);
     }
 
     // Getters and Setters

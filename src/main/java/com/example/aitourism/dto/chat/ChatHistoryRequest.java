@@ -1,17 +1,15 @@
-package com.example.aitourism.dto;
+package com.example.aitourism.dto.chat;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 请求：发起对话
+ * 请求：获取会话历史
  */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ChatRequest {
+public class ChatHistoryRequest {
     private String sessionId;
-    private String messages;
-    private String userId;
 }

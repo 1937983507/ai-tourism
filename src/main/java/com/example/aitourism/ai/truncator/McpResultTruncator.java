@@ -1,4 +1,4 @@
-package com.example.aitourism.util;
+package com.example.aitourism.ai.truncator;
 
 import lombok.extern.slf4j.Slf4j;
 

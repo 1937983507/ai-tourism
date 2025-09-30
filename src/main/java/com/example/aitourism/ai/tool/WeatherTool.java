@@ -1,4 +1,4 @@
-package com.example.aitourism.tool;
+package com.example.aitourism.ai.tool;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.http.HttpRequest;

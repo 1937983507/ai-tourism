@@ -1,4 +1,4 @@
-package com.example.aitourism.dto;
+package com.example.aitourism.dto.chat;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class ChatMessageDTO {
+public class ChatHistoryDTO {
     private String msgId;
     private String role;   // user 或 assistant
     private String content;

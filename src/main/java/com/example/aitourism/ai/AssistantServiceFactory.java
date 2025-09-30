@@ -1,47 +1,32 @@
-package com.example.aitourism.service.impl;
+package com.example.aitourism.ai;
 
-import com.example.aitourism.entity.Message;
-import com.example.aitourism.entity.Session;
-import com.example.aitourism.mapper.ChatMessageMapper;
-import com.example.aitourism.mapper.SessionMapper;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.langchain4j.data.message.*;
-import dev.langchain4j.memory.chat.ChatMemoryProvider;
+import com.example.aitourism.ai.guardrail.PromptSafetyInputGuardrail;
+import com.example.aitourism.ai.guardrail.RetryOutputGuardrail;
+import com.example.aitourism.ai.mcp.McpClientService;
+import com.example.aitourism.ai.truncator.ModelTrimmingProxies;
+import com.example.aitourism.exception.InputValidationException;
+
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
-import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.service.AiServices;
-import dev.langchain4j.service.MemoryId;
 import dev.langchain4j.service.TokenStream;
 //import dev.langchain4j.service.UserMessage;
-import dev.langchain4j.service.memory.ChatMemoryAccess;
-import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 import dev.langchain4j.model.chat.StreamingChatModel;
 
-import dev.langchain4j.data.message.ChatMessage;
-
-import com.example.aitourism.service.Assistant;
-import com.example.aitourism.tool.WeatherTool;
-
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import com.example.aitourism.ai.tool.WeatherTool;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 //@Lazy
 //@Scope(value = ConfigurableBeanFactory.SCOPE_PROTOTYPE, proxyMode = ScopedProxyMode.TARGET_CLASS)
-public class AssistantService {
+public class AssistantServiceFactory {
 
     @Value("${openai.api-key}")
     private String apiKey;
@@ -73,7 +58,7 @@ public class AssistantService {
 
     private final McpClientService mcpClientService;
 
-    private Assistant assistant;
+    private AssistantService assistantService;
 
     @PostConstruct
     public void init_stream() {
@@ -94,21 +79,23 @@ public class AssistantService {
                 .modelName(modelName)
                 .maxTokens(maxOutputTokens)
                 .build();
-        // 包一层裁剪代理，防止输入超限
-        streamingModel = ModelTrimmingProxies.wrapStreaming(
-                streamingModel,
-                true,
-                maxMcpResultLength
-        );
+        // // 包一层裁剪代理，防止输入超限
+        // streamingModel = ModelTrimmingProxies.wrapStreaming(
+        //         streamingModel,
+        //         true,
+        //         maxMcpResultLength
+        // );
         log.info("创建model成功");
 
         try {
-            assistant = AiServices.builder(Assistant.class)
+            assistantService = AiServices.builder(AssistantService.class)
                     .streamingChatModel(streamingModel)
                     .chatMemoryProvider(memoryId -> MessageWindowChatMemory.withMaxMessages(maxHistoryMessages))
                     // .chatMemoryProvider(chatMemoryProvider)  // 自定义记忆能力。
                     .tools(new WeatherTool())
                     // .toolProvider(mcpClientService.createToolProvider())
+                    .inputGuardrails(new PromptSafetyInputGuardrail()) // 添加输入护轨
+//                    .outputGuardrails(new RetryOutputGuardrail())  // 输出护轨，流式输出下似乎会失效
                     .build();
             log.info("创建assistant成功");
         } catch (Exception e) {
@@ -118,12 +105,12 @@ public class AssistantService {
         }
     }
 
-    // 简单心跳：周期性探测 MCP 服务器，失败则重建 Assistant
+    // 简单心跳：周期性探测 MCP 服务器，失败则重建 AssistantService
     @Scheduled(fixedDelayString = "${mcp.heartbeat-interval-seconds:300000}")
     public void heartbeat() {
         try {
             if (mcpClientService == null) return;
-            if (assistant == null) {
+            if (assistantService == null) {
                 init_stream();
                 return;
             }
@@ -133,13 +120,13 @@ public class AssistantService {
     }
 
     /**
-     * 确保 Assistant 与 MCP 工具可用；不可用则尝试重建。
+     * 确保 AssistantService 与 MCP 工具可用；不可用则尝试重建。
      * 返回 true 表示已就绪。
      */
     public boolean ensureReady() {
         try {
-            if (assistant == null) {
-                log.warn("ensureReady: assistant is null, re-init");
+            if (assistantService == null) {
+                log.warn("ensureReady: assistantService is null, re-init");
                 init_stream();
             }
             // 轻量探测 MCP 可用性
@@ -153,8 +140,8 @@ public class AssistantService {
                 init_stream();
                 ok = mcpClientService.pingAny(timeout);
             }
-            log.info("ensureReady result: assistantPresent={}, mcpOk={}", assistant != null, ok);
-            return ok && assistant != null;
+            log.info("ensureReady result: assistantPresent={}, mcpOk={}", assistantService != null, ok);
+            return ok && assistantService != null;
         } catch (Exception e) {
             log.error("ensureReady exception: {}", e.getMessage(), e);
             return false;
@@ -163,20 +150,30 @@ public class AssistantService {
 
     public TokenStream chat_Stream(String memoryId, String message) {
         // 延迟初始化，确保在第一次使用时创建
-        // if (assistant == null) {
+        // if (assistantService == null) {
         //       init_stream();
         // }
+        
        // 每一次请求都创建
        init_stream();
 
         try {
             log.info("开始向大模型发起请求，进行旅游规划");
             // 开始发起流式请求
-            return assistant.chat_Stream(memoryId, message);
+            return assistantService.chat_Stream(memoryId, message);
         } catch (Exception e) {
-            // 可以在这里添加重试逻辑
+            // 捕获输入校验相关异常，抛出自定义异常
+            String msg = e.getMessage();
             log.error("大模型请求报错：" + e.getMessage(), e);
-            throw new RuntimeException("Chat service unavailable", e);
+            if (msg != null && (
+                    msg.contains("输入包含不当内容") ||
+                    msg.contains("输入内容过长") ||
+                    msg.contains("输入内容不能为空") ||
+                    msg.contains("检测到恶意输入")
+            )) {
+                throw new InputValidationException(msg);
+            }
+            throw new RuntimeException("聊天服务不可用", e);
         }
     }
 

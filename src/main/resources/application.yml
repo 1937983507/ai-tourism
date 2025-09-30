@@ -18,6 +18,19 @@ spring:
     scheduling:
       pool:
         size: 1
+  # data:
+  redis:
+    host: localhost
+    port: 6379
+    password: 
+    database: 0
+    ttl: 1800
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
 
 # MCP服务配置
 mcp:
@@ -51,7 +64,8 @@ openweather:
 # OpenAI配置
 openai:
   api-key: "sk-O5VvgPh3jH19zSE0wkxXwVz6P715WDlPwONNiHd7XOcJLTb6"
-  base-url: "https://api.chatanywhere.tech/v1"
+#  base-url: "https://api.chatanywhere.tech/v1"  # 国内节点
+  base-url: "https://api.chatanywhere.org"      # 国外节点
   model-name: "gpt-4o-mini"
   max-output-tokens: 800
 
@@ -109,3 +123,22 @@ sa-token:
   is-share: false
   is-log: true
   jwt-secret-key: "please-change-me-very-strong"
+
+
+# 会话隔离记忆管理配置
+ai:
+  memory:
+    redis:
+      host: localhost
+      port: 6379
+      password: 
+      ttl: 1800  # 1小时过期，1800
+      key-prefix: "ai:memory:"
+
+# 会话隔离相关配置
+session:
+  isolation:
+    enabled: true
+    max-sessions-per-user: 50
+    session-timeout: 3600  # 会话超时时间（秒）
+    memory-cache-size: 2000  # 记忆缓存大小
