@@ -20,6 +20,12 @@ import java.time.LocalDate;
 import java.util.concurrent.TimeUnit;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.example.aitourism.service.AbTestService;
+import com.example.aitourism.monitor.MonitorContextHolder;
+import com.example.aitourism.monitor.MonitorContext;
+import org.springframework.beans.factory.annotation.Autowired;
+import java.time.Duration;
+import java.time.Instant;
 
 @Component
 @Slf4j
@@ -33,6 +39,10 @@ public class WeatherTool extends BaseTool {
 
     @Value("${openweather.api-key}")
     private String openWeatherApiKey;
+    
+    @Autowired
+    private AbTestService abTestService;
+    
 
     // 使用 Caffeine 做 5 分钟本地缓存，防止同参数重复外调
     private static final Cache<String, String> weatherCache = Caffeine.newBuilder()
@@ -59,15 +69,39 @@ public class WeatherTool extends BaseTool {
             @P("城市名称，例如: 北京 / Shanghai / New York") String cityName,
             @P("要返回的预测天数，范围1-16") Integer dayCount
     ) {
+        // 获取监控上下文
+        MonitorContext context = MonitorContextHolder.getContext();
+        String userId = context != null ? context.getUserId() : "unknown";
+        String sessionId = context != null ? context.getSessionId() : "unknown";
+        
+        // 记录工具调用开始时间
+        Instant startTime = Instant.now();
 
+        // TODO 逻辑需要在完善一下
+        // 应该先判断是否要用缓存，若是要用缓存才进行缓存判断，若是不用缓存，则直接调用外部API进行获取数据
+        
         // 开始检查是否命中
         String cacheKey = cityName + "|" + dayCount;
         String cached = weatherCache.getIfPresent(cacheKey);
-        if (cached != null) {
+        boolean fromCache = false;
+        
+        // 检查是否应该使用缓存（A/B测试）
+        boolean shouldUseCache = abTestService.shouldUseToolCache(userId, sessionId);
+        
+        if (shouldUseCache && cached != null) {
+            // 命中缓存 且 允许缓存的情况，记录时间
             log.info("命中天气缓存，城市名称: {}, 天数: {}", cityName, dayCount);
+            fromCache = true;
+            
+            // 记录缓存命中性能数据
+            Duration responseTime = Duration.between(startTime, Instant.now());
+            abTestService.recordToolPerformance(userId, sessionId, "weatherForecast", responseTime, true);
+
+            // 直接返回了缓存结果
             return cached;
         }
-        log.info("获取天气预报，城市名称: {}, 天数: {}", cityName, dayCount);
+        
+        // 没有命中缓存 or 不允许缓存的情况，则调用外部API进行获取数据
 
         if (dayCount == null) {
             dayCount = 7;
@@ -146,7 +180,16 @@ public class WeatherTool extends BaseTool {
 
                 String resultText = resultArray.toString();
                 log.info("获取天气数据成功: {}", resultText);
-                weatherCache.put(cacheKey, resultText);
+                
+                // 只有在使用缓存时才存储到缓存中
+                if (shouldUseCache) {
+                    weatherCache.put(cacheKey, resultText);
+                }
+                
+                // 记录缓存未命中性能数据
+                Duration responseTime = Duration.between(startTime, Instant.now());
+                abTestService.recordToolPerformance(userId, sessionId, "weatherForecast", responseTime, false);
+                
                 return resultText;
             }
 

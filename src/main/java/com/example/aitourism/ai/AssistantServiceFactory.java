@@ -20,6 +20,8 @@ import dev.langchain4j.model.chat.StreamingChatModel;
 
 import com.example.aitourism.ai.tool.ToolManager;
 
+
+// 这是首版没有使用记忆的AI服务，目前已经停止维护。
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -87,7 +89,7 @@ public class AssistantServiceFactory {
                     // .chatMemoryProvider(chatMemoryProvider)  // 自定义记忆能力。
                     .tools((Object[]) toolManager.getAllTools())
                     .maxSequentialToolsInvocations(1)
-                    // .toolProvider(mcpClientService.createToolProvider())
+                    .toolProvider(mcpClientService.createToolProvider())
                     .inputGuardrails(new PromptSafetyInputGuardrail()) // 添加输入护轨
 //                    .outputGuardrails(new RetryOutputGuardrail())  // 输出护轨，流式输出下似乎会失效
                     .build();

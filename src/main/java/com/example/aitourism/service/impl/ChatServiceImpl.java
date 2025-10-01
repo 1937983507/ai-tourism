@@ -102,6 +102,14 @@ public class ChatServiceImpl implements ChatService {
         }else{
             log.info("流式返回");
 
+            // 在发起模型请求前设置监控上下文，确保监听器可获取 userId/sessionId
+            com.example.aitourism.monitor.MonitorContextHolder.setContext(
+                    com.example.aitourism.monitor.MonitorContext.builder()
+                            .userId(userId)
+                            .sessionId(sessionId)
+                            .build()
+            );
+
             TokenStream tokenStream = assistantServiceFactory.chat_Stream(sessionId, messages);
 
             response.setContentType("text/event-stream");

@@ -68,14 +68,14 @@ public class CustomRedisChatMemoryStore implements ChatMemoryStore {
     public List<ChatMessage> getMessages(Object memoryId) {
         // 从 Redis 读取 JSON 文本并反序列化为 ChatMessage 列表
         try {
-            log.info("开始从Redis中获取记忆");
+            // log.info("开始从Redis中获取记忆");
             Object value = redisTemplate.opsForValue().get(buildKey(memoryId));
             if (value == null) {
                 return new ArrayList<>();
             }
             String json = value instanceof String ? (String) value : String.valueOf(value);
             List<ChatMessage> messages = messagesFromJson(json);
-            log.info("从Redis中获取的记忆: {}", json);
+            // log.info("从Redis中获取的记忆: {}", json);
             if(messages==null || messages.isEmpty() || isOnlySystemMessage(messages)){
                 // 为空或只有系统消息（此时就是Redis超时过期），尝试从数据库中获取数据
                 log.info("Redis中无有效记忆（空或仅系统消息），尝试从数据库获取历史消息");
@@ -98,7 +98,7 @@ public class CustomRedisChatMemoryStore implements ChatMemoryStore {
     public void updateMessages(Object memoryId, List<ChatMessage> messages) {
         // 将消息序列化为 JSON，并写回 Redis，同时设置过期时间
         try {
-            log.info("开始将以下记忆写入Redis：{}", messages);
+            // log.info("开始将以下记忆写入Redis：{}", messages);
             String json = messagesToJson(messages == null ? new ArrayList<>() : messages);
             redisTemplate.opsForValue().set(buildKey(memoryId), json, Duration.ofSeconds(ttlSeconds));
         } catch (Exception e) {
@@ -141,12 +141,12 @@ public class CustomRedisChatMemoryStore implements ChatMemoryStore {
     private List<ChatMessage> loadMessagesFromDatabase(Object memoryId) {
         try {
             String sessionId = memoryId.toString();
-            log.info("从数据库加载会话 {} 的历史消息", sessionId);
+            // log.info("从数据库加载会话 {} 的历史消息", sessionId);
             
             // 从数据库获取历史消息
             var dbMessages = chatMessageMapper.findBySessionId(sessionId);
             if (dbMessages == null || dbMessages.isEmpty()) {
-                log.info("数据库中也没有会话 {} 的历史消息", sessionId);
+                // log.info("数据库中也没有会话 {} 的历史消息", sessionId);
                 return new ArrayList<>();
             }
             
@@ -169,14 +169,14 @@ public class CustomRedisChatMemoryStore implements ChatMemoryStore {
                 }
             }
             
-            log.info("从数据库成功加载了{}条历史消息", l4jMessages.size());
+            // log.info("从数据库成功加载了{}条历史消息", l4jMessages.size());
             
             // 将数据库消息回填到Redis中，避免下次重复查询
             if (!l4jMessages.isEmpty()) {
                 try {
                     String json = messagesToJson(l4jMessages);
                     redisTemplate.opsForValue().set(buildKey(memoryId), json, Duration.ofSeconds(ttlSeconds));
-                    log.info("已将数据库消息回填到Redis");
+                    // log.info("已将数据库消息回填到Redis");
                 } catch (Exception e) {
                     log.warn("回填Redis失败: {}", e.getMessage());
                 }

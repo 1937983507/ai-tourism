@@ -3,9 +3,12 @@ package com.example.aitourism.ai;
 import com.example.aitourism.ai.guardrail.PromptSafetyInputGuardrail;
 import com.example.aitourism.ai.mcp.McpClientService;
 import com.example.aitourism.ai.tool.ToolManager;
-import com.example.aitourism.ai.tool.WeatherTool;
 import com.example.aitourism.exception.InputValidationException;
 import com.example.aitourism.mapper.ChatMessageMapper;
+import com.example.aitourism.monitor.AiModelMonitorListener;
+import com.example.aitourism.monitor.MonitorContext;
+import com.example.aitourism.monitor.MonitorContextHolder;
+import com.example.aitourism.service.AbTestService;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
@@ -13,6 +16,7 @@ import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.TokenStream;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
+import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +24,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.List;
+import java.time.Instant;
 
 /**
  * 会话隔离的AI助手服务工厂
@@ -57,6 +63,12 @@ public class MemoryAssistantServiceFactory {
     private final ChatMessageMapper chatMessageMapper;
     private final ToolManager toolManager;
 
+    @Resource
+    private AiModelMonitorListener aiModelMonitorListener;
+    
+    @Resource
+    private AbTestService abTestService;   
+
 
     /**
      * 基于 caffeine 实现的AI服务实例缓存 - 按会话隔离
@@ -81,9 +93,40 @@ public class MemoryAssistantServiceFactory {
         log.info("获取或创建会话隔离的AI服务");
         String cacheKey = sessionId;
         
+        // 检查是否应该使用缓存（A/B测试）
+        boolean shouldUseCache = abTestService.shouldUseServiceCache(userId, sessionId);
+        
+        if (!shouldUseCache) {
+            log.info("A/B测试：跳过缓存，直接创建新实例");
+            Instant startTime = Instant.now();
+            AssistantService service = createAssistantService(sessionId, userId);
+            // 记录无缓存创建时间（仅包含创建本身）
+            Duration creationTime = Duration.between(startTime, Instant.now());
+            log.info("A/B测试：记录无缓存情况下，AI服务的创建时间为{}", creationTime);
+            abTestService.recordServiceCreationPerformance(userId, sessionId, creationTime, false);
+            return service;
+        }
+        
+        // 先尝试直接命中缓存（只统计获取时间，不包含创建时间）
+        Instant lookupStart = Instant.now();
+        AssistantService cached = serviceCache.getIfPresent(cacheKey);
+        if (cached != null) {
+            Duration lookupTime = Duration.between(lookupStart, Instant.now());
+            log.info("A/B测试：缓存命中，记录获取耗时 {}", lookupTime);
+            // fromCache=true 表示来自缓存；这里统计的是获取时间
+            abTestService.recordServiceCreationPerformance(userId, sessionId, lookupTime, true);
+            return cached;
+        }
+
+        // 缓存未命中：在加载器内部仅统计创建时间（不包含查找时间）
         return serviceCache.get(cacheKey, key -> {
-            // 基于 cacheKey 查找缓存，若是缓存不存在则生成缓存元素。
-            return createAssistantService(sessionId, userId);
+            log.info("A/B测试：缓存未命中，开始创建新实例");
+            Instant createStart = Instant.now();
+            AssistantService service = createAssistantService(sessionId, userId);
+            Duration creationTime = Duration.between(createStart, Instant.now());
+            log.info("A/B测试：记录有缓存（未命中->创建）情况下的创建时间为{}", creationTime);
+            abTestService.recordServiceCreationPerformance(userId, sessionId, creationTime, true);
+            return service;
         });
     }
 
@@ -134,6 +177,7 @@ public class MemoryAssistantServiceFactory {
                 .baseUrl(baseUrl)
                 .modelName(modelName)
                 .maxTokens(maxOutputTokens)
+                .listeners(List.of(aiModelMonitorListener))  // 注册监听器
                 .build();
         
         log.info("创建流式模型成功");
@@ -166,10 +210,20 @@ public class MemoryAssistantServiceFactory {
      */
     public TokenStream chatStream(String sessionId, String userId, String message) {
         log.info("开始流式对话，会话ID: {}, 用户ID: {}, 消息: {}", sessionId, userId, message);
+
+
+        // 设置监控上下文
+        MonitorContextHolder.setContext(
+                MonitorContext.builder()
+                        .userId(userId)
+                        .sessionId(sessionId)
+                        .build()
+        );
+
         // 对话前，首先去获取一下caffeine尝试获取AI Service实例，若是获取不到，则新建实例
         AssistantService assistantService = getAssistantService(sessionId, userId);
-        log.info("获取或创建会话隔离的AI服务成功");
-        log.info(assistantService.toString());
+        // log.info("获取或创建会话隔离的AI服务成功");
+        // log.info(assistantService.toString());
         String memoryId = sessionId;
 
         try {
@@ -189,6 +243,9 @@ public class MemoryAssistantServiceFactory {
                 throw new InputValidationException(msg);
             }
             throw new RuntimeException("聊天服务不可用", e);
+        } finally {
+            // 清除监控上下文
+            MonitorContextHolder.clearContext();
         }
     }
 
