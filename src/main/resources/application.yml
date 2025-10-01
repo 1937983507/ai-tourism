@@ -142,3 +142,36 @@ session:
     max-sessions-per-user: 50
     session-timeout: 3600  # 会话超时时间（秒）
     memory-cache-size: 2000  # 记忆缓存大小
+
+# A/B测试配置 - 针对单人测试优化
+ab-test:
+  tool-cache:
+    enabled: true
+    target-hit-rate: 0.8
+    record-no-cache-baseline: true
+    no-cache-test-ratio: 0.3  # 30%的请求不使用缓存，快速收集对比数据
+  service-cache:
+    enabled: true
+    record-no-cache-baseline: true
+    no-cache-test-ratio: 0.2  # 20%的请求不使用缓存，快速收集对比数据
+  truncation:
+    enabled: true
+    record-no-truncation-baseline: true
+    no-truncation-test-ratio: 0.2  # 20%的请求不使用裁剪，快速收集对比数据
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,threaddump,env,logfile
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+  prometheus:
+    metrics:
+      export:
+        step: 10s
+        registry-type: classic

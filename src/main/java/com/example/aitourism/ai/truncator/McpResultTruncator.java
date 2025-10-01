@@ -25,7 +25,7 @@ public class McpResultTruncator {
      * @return 裁剪后的结果
      */
     public static String truncateResult(String result, int maxLength) {
-        if (result == null || result.length() <= maxLength) {
+        if (result == null || result.length() < maxLength) {
             return result;
         }
         

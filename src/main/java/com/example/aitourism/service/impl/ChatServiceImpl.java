@@ -67,11 +67,11 @@ public class ChatServiceImpl implements ChatService {
     public String chat(String sessionId, String messages, String userId, Boolean stream, HttpServletResponse response) throws Exception {
         log.info("用户的问题是：{}", messages);
 
-        // 在请求 LLM 前确保 AssistantService 与 MCP 工具就绪
-        boolean ready = assistantServiceFactory.ensureReady();
-        if (!ready) {
-            throw new RuntimeException("AssistantService/MCP 工具不可用，请稍后重试");
-        }
+//        // 在请求 LLM 前确保 AssistantService 与 MCP 工具就绪
+//        boolean ready = assistantServiceFactory.ensureReady();
+//        if (!ready) {
+//            throw new RuntimeException("AssistantService/MCP 工具不可用，请稍后重试");
+//        }
 
         String title = messages;
 
@@ -101,6 +101,14 @@ public class ChatServiceImpl implements ChatService {
              reply.append("这是针对[").append(messages).append("]的返回内容");
         }else{
             log.info("流式返回");
+
+            // 在发起模型请求前设置监控上下文，确保监听器可获取 userId/sessionId
+            com.example.aitourism.monitor.MonitorContextHolder.setContext(
+                    com.example.aitourism.monitor.MonitorContext.builder()
+                            .userId(userId)
+                            .sessionId(sessionId)
+                            .build()
+            );
 
             TokenStream tokenStream = assistantServiceFactory.chat_Stream(sessionId, messages);
 

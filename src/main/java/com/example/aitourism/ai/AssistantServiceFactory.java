@@ -1,9 +1,8 @@
 package com.example.aitourism.ai;
 
 import com.example.aitourism.ai.guardrail.PromptSafetyInputGuardrail;
-import com.example.aitourism.ai.guardrail.RetryOutputGuardrail;
 import com.example.aitourism.ai.mcp.McpClientService;
-import com.example.aitourism.ai.truncator.ModelTrimmingProxies;
+// import com.example.aitourism.ai.truncator.ModelTrimmingProxies;
 import com.example.aitourism.exception.InputValidationException;
 
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
@@ -19,8 +18,10 @@ import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 import dev.langchain4j.model.chat.StreamingChatModel;
 
-import com.example.aitourism.ai.tool.WeatherTool;
+import com.example.aitourism.ai.tool.ToolManager;
 
+
+// 这是首版没有使用记忆的AI服务，目前已经停止维护。
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -57,6 +58,7 @@ public class AssistantServiceFactory {
     private boolean mcpTruncationEnabled;
 
     private final McpClientService mcpClientService;
+    private final ToolManager toolManager;
 
     private AssistantService assistantService;
 
@@ -64,14 +66,6 @@ public class AssistantServiceFactory {
     public void init_stream() {
 
         log.info("开始初始化 init_stream ");
-
-//        // 手动管理记忆
-//        ChatMemoryStoreService store = new ChatMemoryStoreService();
-//        ChatMemoryProvider chatMemoryProvider = memoryId -> MessageWindowChatMemory.builder()
-//                .id(memoryId)
-//                .maxMessages(10)
-//                .chatMemoryStore(store)
-//                .build();
 
         StreamingChatModel streamingModel = OpenAiStreamingChatModel.builder()
                 .apiKey(apiKey)
@@ -90,10 +84,12 @@ public class AssistantServiceFactory {
         try {
             assistantService = AiServices.builder(AssistantService.class)
                     .streamingChatModel(streamingModel)
+                    // 这是Langchain4j默认的记忆机制，但是不提供持久化，系统重启后就会丢失。
                     .chatMemoryProvider(memoryId -> MessageWindowChatMemory.withMaxMessages(maxHistoryMessages))
                     // .chatMemoryProvider(chatMemoryProvider)  // 自定义记忆能力。
-                    .tools(new WeatherTool())
-                    // .toolProvider(mcpClientService.createToolProvider())
+                    .tools((Object[]) toolManager.getAllTools())
+                    .maxSequentialToolsInvocations(1)
+                    .toolProvider(mcpClientService.createToolProvider())
                     .inputGuardrails(new PromptSafetyInputGuardrail()) // 添加输入护轨
 //                    .outputGuardrails(new RetryOutputGuardrail())  // 输出护轨，流式输出下似乎会失效
                     .build();
@@ -150,12 +146,9 @@ public class AssistantServiceFactory {
 
     public TokenStream chat_Stream(String memoryId, String message) {
         // 延迟初始化，确保在第一次使用时创建
-        // if (assistantService == null) {
-        //       init_stream();
-        // }
-        
-       // 每一次请求都创建
-       init_stream();
+        if (assistantService == null) {
+            init_stream();
+        }
 
         try {
             log.info("开始向大模型发起请求，进行旅游规划");

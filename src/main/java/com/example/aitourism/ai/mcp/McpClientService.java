@@ -7,8 +7,10 @@ import dev.langchain4j.mcp.client.McpClient;
 import dev.langchain4j.mcp.client.transport.McpTransport;
 import dev.langchain4j.mcp.client.transport.http.HttpMcpTransport;
 import dev.langchain4j.mcp.McpToolProvider;
+import dev.langchain4j.mcp.client.transport.http.SseEventListener;
 import dev.langchain4j.service.tool.ToolProvider;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +31,9 @@ import lombok.extern.slf4j.Slf4j;
 public class McpClientService {
 
     private final McpConfig mcpConfig;
+    
+    @Autowired
+    private TruncatingToolProvider truncatingToolProvider;
     
     /**
      * MCP工具结果裁剪的最大长度配置
@@ -68,7 +73,12 @@ public class McpClientService {
             log.info("启用MCP工具结果裁剪功能，最大长度限制: {} 字符", maxResultLength);
             Map<String, Integer> toolSpecificLimits = parseToolSpecificLimits();
             log.info("工具特定限制: {}", toolSpecificLimits);
-            return new TruncatingToolProvider(mcpClients, maxResultLength, toolSpecificLimits);
+            
+            // 使用Spring管理的实例，确保依赖注入生效
+            truncatingToolProvider.setMcpClients(mcpClients);
+            truncatingToolProvider.setMaxLength(maxResultLength);
+            truncatingToolProvider.setToolSpecificLimits(toolSpecificLimits);
+            return truncatingToolProvider;
         }
 
         // 否则使用基础的 MCP 工具提供者
