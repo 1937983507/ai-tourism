@@ -29,7 +29,13 @@ aI-tourism 是一个智能旅游规划系统，后端基于 Spring Boot、LangCh
 
 ---
 
+开篇加一个效果视频
+![前端效果图](assets/界面图.png)
+---
+
 ## 💡 核心特性与架构特点
+
+![核心特性与架构特点](assets/核心特性与架构特点.png)
 
 ### 1. Agent 服务与地图路线渲染深度结合
 - **功能说明**：用户不仅能获得 Agent 生成的图文旅游攻略，还能在前端地图上直观查看每日路线规划。
@@ -38,23 +44,36 @@ aI-tourism 是一个智能旅游规划系统，后端基于 Spring Boot、LangCh
     - 前端在接收流式响应后，通过 marked.js 和 Highlight.js 等库，实现 Markdown 内容的渲染与语法高亮；另外解析结构化路线数据，结合地图组件（高德 JS API）进行可视化渲染。
 - **优势**：极大提升用户体验，实现“所见即所得”的智能路线规划。
 
-### 2. 基于 Langchain4j 的 Agent 服务，支持 MCP 工具热插拔，多轮对话记忆
-- **功能说明**：AI Agent 通过 Langchain4j 框架集成，支持多种MCP工具（如天气、景点搜索等）动态加载，具备短期对话记忆与长期数据库存储。
+### 2. 基于 Langchain4j 的 Agent 服务，支持 MCP 工具热插拔、多轮对话记忆
+- **功能说明**：AI Agent 通过 Langchain4j 框架集成，支持多种 MCP 工具（如天气、景点搜索等）动态加载，具备短期对话记忆与数据库存储历史数据。
 - **实现方式**:
-    - MCP 工具通过配置可灵活启用/禁用，支持热插拔。
-    - 对话短期记忆通过内存管理，长期记忆(历史会话、消息)持久化到数据库。
-    - 多轮对话上下文由 sessionId 关联，支持历史追溯与上下文理解。
+    - 工具调用：MCP 工具通过配置可灵活启用/禁用，支持热插拔；所有 Tool 工具均实现统一接口，注册到 ToolManager，支持运行时动态扩展与管理。
+    - 多轮记忆：实现 ChatMemoryStore，短期记忆优先存储于 Redis，未命中自动回退数据库，AI Service 实例以会话为单位缓存，支持多用户并发与上下文隔离。
+    - 安全防范：LangChain4j 输入护轨机制，前置校验请求内容，防止敏感词与 Prompt 注入攻击，保障系统稳定性。
 - **优势**：灵活扩展 AI 能力，支持复杂多轮对话，兼顾性能与可维护性。
 
-### 3. token 超限防护：JDK 动态代理与 ToolProvider 包装器
-- **功能说明**：防止 LLM 调用时因输出内容过长导致 token 超限报错。
-- **实现方式**:
-    - 采用 JDK 动态代理拦截 Agent 输入内容，自动裁剪超长文本。
-    - MCP 工具执行结果通过 ToolProvider 包装器进行内容截断，确保返回内容不超限。
-    - 智能摘要与结构化输出，最大化信息密度。
-- **优势**：保障系统稳定性，提升 AI 响应质量，避免因 token 限制导致的服务中断。
+### 3. 工具统一注册与高性能调用防抖
+- **功能说明**：抽象 BaseTool 基类，结合 Spring 自动注入机制，构建 ToolManager 实现 AI 工具的统一注册与管理。
+- **实现方式**：
+    - 所有 AI 工具均继承 BaseTool，通过 Spring 容器自动发现与注入，ToolManager 负责统一注册、调度与生命周期管理，支持工具热插拔与灵活扩展。
+    - 引入 Caffeine 缓存，针对 LLM 工具多次重复调用场景，缓存工具调用结果，命中缓存即跳过外部请求，极大降低平均响应耗时（如 5.20s → 399μs）。
+- **优势**：提升工具调用性能，防止 LLM 工具重复消耗外部资源，支持大规模工具集成与统一治理。
 
-### 4. Sa-Token 权限认证：短期+长期 Token 结合
+### 4. 多轮对话记忆与实例隔离
+- **功能说明**：实现 ChatMemoryStore 接口，结合 Redis 管理短期记忆，未命中则回退数据库，支持多轮对话记忆与会话隔离。
+- **实现方式**：
+    - 会话记忆优先存储于 Redis，未命中自动回退数据库，兼顾高性能与数据可靠性。
+    - 以会话为粒度引入 Caffeine 缓存，缓存 AI Service 实例，实现会话记忆隔离，提升服务响应性能并减少实例重复创建（实例平均创建时间由 13.1ms 降低至 9.74ms，性能提升 28.4%）。
+- **优势**：支持多用户并发、上下文隔离，保障对话连贯性与系统高可用。
+
+### 5. AI 输入护轨与结构化输出
+- **功能说明**：通过 LangChain4j 输入护轨，对调用 AI 的请求前置校验，有效拒绝敏感词与防范 Prompt 注入攻击。
+- **实现方式**：
+    - 请求前置校验，自动过滤敏感词、恶意注入等风险内容，保障系统安全。
+    - 结合 Prompt few-shot 与 JSON Schema，输出结构化路线数据，前端可直接解析用于地图渲染展示。
+- **优势**：提升系统安全性，防止越权与注入攻击，前后端协作高效，路线数据结构化便于可视化。
+
+### 6. Sa-Token 权限认证：短期+长期 Token 结合
 - **功能说明**：实现高效且安全的用户认证与权限管理。
 - **实现方式**:
     - 短期 Token(JwT) 存储于内存，响应速度快，适合高效访问。
@@ -62,7 +81,7 @@ aI-tourism 是一个智能旅游规划系统，后端基于 Spring Boot、LangCh
     - 结合注解式权限控制，细粒度分配角色与权限。
 - **优势**:兼顾性能与安全，支持多端登录、权限动态调整。
 
-### 5. SpringBoot 工程化与 RESTful 设计
+### 7. SpringBoot 工程化与 RESTful 设计
 - **功能说明**：后端采用标准 SpringBoot 工程化架构，接口遵循 RESTful 规范，便于前后端分离与扩展。
 - **实现方式**:
     - 统一的 Controller - Service - Mapper 分层，清晰职责划分。
@@ -73,34 +92,17 @@ aI-tourism 是一个智能旅游规划系统，后端基于 Spring Boot、LangCh
 
 ## 🏗️ 系统整体架构
 
-> ![请在此处补充系统整体架构图](system-architecture.png)
+> ![系统整体架构图示例](doc/ai-tourism-architecture.png)
 
-本系统采用分层解耦、模块化设计，主要业务模块如下：
+**架构说明：**
 
-### 1. 用户与权限模块
-- 负责用户注册、登录、登出、信息查询、角色与权限分配、token 管理等。
-- 基于 Sa-Token 实现 JWT 认证、权限注解、短期/长期 token 结合，保障安全与效率。
-
-### 2. AI Agent 智能助手模块
-- 基于 LangChain4j 实现，支持多轮对话、上下文记忆。
-- 动态集成 MCP 工具（如天气、景点搜索等），支持热插拔。
-- 具备 token 超限防护（JDK 动态代理+ToolProvider 裁剪），输出结构化旅游路线。
-
-### 3. 会话与记忆管理模块
-- 支持多轮对话的短期记忆（内存）与长期记忆（数据库持久化）。
-- 会话历史、消息、路线等数据结构化存储，便于追溯与分析。
-
-### 4. 地图与可视化模块
-- 后端输出结构化路线数据，前端解析并结合地图组件（如高德/百度地图）渲染每日旅游路线。
-- 实现“所见即所得”的智能路线规划体验。
-
-### 5. 工具与集成模块
-- MCP 工具统一注册与管理，支持按需加载、灵活扩展。
-- 支持多种大模型（OpenAI、HuggingFace、VertexAI 等）能力接入。
-
-### 6. 数据与安全模块
-- MySQL 持久化存储用户、角色、权限、会话、消息、token 等业务数据。
-- 全局异常处理、日志、CORS 配置，保障系统稳定与安全。
+- **前端**：负责用户交互、地图渲染、AI 对话展示。
+- **API 网关/控制层**：统一入口，负责请求分发、权限校验。
+- **AI Agent 服务层**：基于 LangChain4j，负责多轮对话、工具调用、上下文记忆。
+- **工具管理与缓存层**：ToolManager 统一注册与调度 BaseTool 工具，Caffeine 缓存防抖，Redis 管理会话记忆。
+- **业务服务层**：用户、权限、会话、消息等业务逻辑。
+- **数据持久化层**：MySQL 存储用户、角色、权限、会话、消息等。
+- **监控与日志**：Prometheus + Grafana 实时监控，SLF4j 日志追踪。
 
 ---
 
@@ -113,17 +115,26 @@ ai-tourism/
 ├── src/
 │   ├── main/
 │   │   ├── java/com/example/aitourism/
-│   │   │   ├── controller/      # REST API 控制器
-│   │   │   ├── service/         # 业务逻辑与AI集成
-│   │   │   ├── entity/          # 实体类
-│   │   │   ├── mapper/          # MyBatis 映射
-│   │   │   ├── dto/             # 数据传输对象
-│   │   │   ├── config/          # 配置类（如Sa-Token、CORS等）
-│   │   │   └── util/            # 工具类
+│   │   │   ├── ai/                  # AI Agent、工具、记忆、护轨等核心AI能力
+│   │   │   ├── config/              # 配置类（如Sa-Token、CORS、Redis等）
+│   │   │   ├── controller/          # REST API 控制器
+│   │   │   ├── dto/                 # 数据传输对象
+│   │   │   ├── entity/              # 实体类
+│   │   │   ├── exception/           # 全局异常处理
+│   │   │   ├── mapper/              # MyBatis 映射
+│   │   │   ├── monitor/             # 监控与埋点
+│   │   │   ├── service/             # 业务逻辑与AI集成
+│   │   │   └── util/                # 工具类
 │   │   └── resources/
-│   │       ├── application.yml  # 主要配置文件
-│   │       └── sql/             # 数据库建表脚本
-├── pom.xml                      # Maven 依赖
+│   │       ├── application.yml      # 主要配置文件
+│   │       ├── prompt/              # AI Prompt 模板
+│   │       └── sql/                 # 数据库建表脚本
+├── sql/
+│   └── create_table.sql             # 数据库表结构
+├── doc/
+│   ├── API.md                       # 接口文档
+│   └── Prometheus-Grafana.json      # 监控大盘配置
+├── pom.xml                          # Maven 依赖
 └── README.md
 ```
 
@@ -131,19 +142,24 @@ ai-tourism/
 
 - Java 21
 - Spring Boot 3.5.x
-- LangChain4j（AI能力集成，支持 OpenAI、MCP、HuggingFace 等）
+- LangChain4j（AI能力集成）
 - MySQL 8.x
 - MyBatis & MyBatis-Spring-Boot
 - Sa-Token（JWT 认证与权限）
 - BCrypt（密码加密）
 - Lombok
 - OkHttp3
+- Caffeine（本地高性能缓存）
+- Redis（分布式缓存与对话记忆）
+- Hutool（工具库）
+- Prometheus + Grafana（监控与可视化）
+- Micrometer（Spring Boot 监控埋点）
 
 > 详见 `pom.xml` 依赖配置。
 
 ### 🗄️ 数据库结构
 
-主要表设计如下（详见 `sql/create_table.sql`）：
+主要表设计如下：
 
 - `t_user`：用户表（含手机号、加密密码、昵称、头像、状态等）
 - `t_role`：角色表（如 USER、ROOT）
@@ -180,18 +196,31 @@ ai-tourism/
 - `POST /ai_assistant/get_history`：获取会话历史，支持多轮追溯
 - `POST /ai_assistant/session_list`：获取历史会话列表，分页展示
 
-> 详细参数与返回格式请参考代码注释和 DTO 类。
+> 详细参数与返回格式请参考 `doc/API.md`。
 
 ---
 
 ## 🔒 认证与权限机制
 
-- 基于 Sa-Token + JWT，所有敏感接口需携带 Bearer Token
-- 注解式权限控制（如 `@SaCheckLogin`, `@SaCheckPermission`）
-- 支持多角色、细粒度权限分配
-- 密码加密存储（BCrypt）
-- 刷新令牌机制，提升安全性与体验
-- 权限与角色数据通过数据库灵活配置，支持动态调整
+本系统采用 Sa-Token + JWT 认证，所有敏感接口需携带 Bearer Token。支持注解式权限控制（如 `@SaCheckLogin`, `@SaCheckPermission`），多角色、细粒度权限分配，密码加密存储（BCrypt），刷新令牌机制提升安全性与体验，权限与角色数据通过数据库灵活配置，支持动态调整。
+
+---
+
+## 📊 监控与可观测性（Prometheus + Grafana）
+
+系统已集成 Prometheus + Grafana 实现全链路监控，覆盖 AI 服务调用、工具缓存命中、Token 消耗、响应耗时、错误率等核心指标。
+
+- **监控内容示例：**
+    - AI模型总请求数、成功率、平均响应时间、Token消耗趋势
+    - 工具缓存命中率、调用响应时间对比（缓存/非缓存）
+    - 各工具MCP结果裁剪节省Token数量、AI服务实例创建时间提升比例
+    - 用户/会话活跃排行、错误类型分布等
+- **Grafana 大盘示例截图：**
+
+> ![监控大盘示例1](doc/grafana-dashboard-1.png)
+> ![监控大盘示例2](doc/grafana-dashboard-2.png)
+
+> 可参考 `doc/Prometheus-Grafana.json` 配置文件。*
 
 ---
 
@@ -202,6 +231,15 @@ ai-tourism/
   - 天气查询、景点推荐、路线规划
   - 智能裁剪与摘要，自动结构化输出
   - 工具调用与异常兜底
+- 工具注册与调用：
+  - 所有 AI 工具均实现统一接口，注册到 ToolManager，支持运行时动态扩展与管理。
+  - 工具调用结果采用 Caffeine 缓存，防止 LLM 重复请求外部服务，极大提升响应速度。
+- 多轮对话记忆：
+  - ChatMemoryStore 结合 Redis 管理短期记忆，未命中自动回退数据库，兼顾性能与数据安全。
+  - AI Service 实例以会话为单位缓存，支持多用户并发与上下文隔离。
+- 安全与结构化输出：
+  - LangChain4j 输入护轨机制，前置校验请求内容，防止敏感词与 Prompt 注入攻击。
+  - 结合 Prompt few-shot 与 JSON Schema，输出结构化路线数据，前端可直接用于地图渲染。
 - 多轮对话：
   - 每次对话均带有 sessionId，短期记忆在内存，长期记忆（历史会话、消息）存储于数据库
   - 支持上下文追溯，提升对话连贯性
@@ -230,8 +268,8 @@ ai-tourism/
 
 ## 🖼️ 示例效果
 
-> ![请在此处补充前端界面截图1](screenshot1.png)
-> ![请在此处补充前端界面截图2](screenshot2.png)
+> ![补充前端界面截图1](screenshot1.png)
+> ![补充前端界面截图2](screenshot2.png)
 
 ---
 
@@ -239,7 +277,7 @@ ai-tourism/
 
 欢迎任何建议、反馈与贡献！如需交流或有合作意向，欢迎通过以下方式联系：
 
-- 微信：vx13859211947
+- 微信：vx 13859211947
 - 提交 Issue 或 PR 到本仓库
 - 也欢迎访问前端项目：[ai-tourism-frontend 仓库](https://github.com/1937983507/ai-tourism-frontend)
 
