@@ -96,6 +96,7 @@ public class MemoryAssistantServiceFactory {
         // 检查是否应该使用缓存（A/B测试）
         boolean shouldUseCache = abTestService.shouldUseServiceCache(userId, sessionId);
         
+        // 不允许使用缓存的情况
         if (!shouldUseCache) {
             log.info("A/B测试：跳过缓存，直接创建新实例");
             Instant startTime = Instant.now();
@@ -107,6 +108,7 @@ public class MemoryAssistantServiceFactory {
             return service;
         }
         
+        // 允许使用缓存的情况
         // 先尝试直接命中缓存（只统计获取时间，不包含创建时间）
         Instant lookupStart = Instant.now();
         AssistantService cached = serviceCache.getIfPresent(cacheKey);

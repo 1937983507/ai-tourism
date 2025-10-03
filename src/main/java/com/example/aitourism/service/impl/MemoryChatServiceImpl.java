@@ -299,7 +299,6 @@ public class MemoryChatServiceImpl implements ChatService {
     }
 
     
-    
     // 异步生成路线对象
     private CompletableFuture<String> getDailyRoutes(String reply){
         return CompletableFuture.supplyAsync(() -> {

@@ -48,7 +48,7 @@ mcp:
     tool-specific-limits: "baidu_search:1500,fetchJuejinArticle:1000"
   clients:
     - name: "amap"
-      sse-url: "https://mcp.amap.com/sse?key=a7a5be837d1645cd49c74a601187bc35"
+      sse-url: "https://mcp.amap.com/sse?key=xxx"
       log-requests: true
       log-responses: true
       timeout-seconds: 600
@@ -59,11 +59,11 @@ mcp:
     #   timeout-seconds: 600
 
 openweather:
-  api-key: "7ca6918502f4ea2ef64568da06916c0f"
+  api-key: "xxx"
 
 # OpenAI配置
 openai:
-  api-key: "sk-O5VvgPh3jH19zSE0wkxXwVz6P715WDlPwONNiHd7XOcJLTb6"
+  api-key: "xxx"
 #  base-url: "https://api.chatanywhere.tech/v1"  # 国内节点
   base-url: "https://api.chatanywhere.org"      # 国外节点
   model-name: "gpt-4o-mini"
