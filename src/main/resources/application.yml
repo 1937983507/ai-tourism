@@ -61,12 +61,19 @@ mcp:
 openweather:
   api-key: "xxx"
 
-# OpenAI配置
+# OpenAI配置（主模型）
 openai:
   api-key: "xxx"
 #  base-url: "https://api.chatanywhere.tech/v1"  # 国内节点
   base-url: "https://api.chatanywhere.org"      # 国外节点
   model-name: "gpt-4o-mini"
+  max-output-tokens: 800
+
+# OpenAI配置（小模型）
+openai-small:
+  api-key: "xxx"
+  base-url: "http://localhost:11434/v1"      # 本地 Ollama 模型
+  model-name: "qwen2.5:1.5b"
   max-output-tokens: 800
 
 # HTTP客户端配置

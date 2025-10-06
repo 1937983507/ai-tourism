@@ -7,12 +7,11 @@ import com.example.aitourism.service.ChatService;
 import com.example.aitourism.service.impl.MemoryChatServiceImpl;
 import com.example.aitourism.util.Constants;
 
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckPermission;
+import reactor.core.publisher.Flux;
 
 @RestController
 @RequestMapping("/ai_assistant")
@@ -33,57 +32,32 @@ public class ChatController {
     @SaCheckLogin
     @SaCheckPermission("ai:chat")
     @PostMapping(value = "/chat-stream", produces = "text/event-stream")
-    public void chat_stream(@RequestBody ChatRequest request, HttpServletResponse response) throws Exception {
-        // 简单的参数校验
+    public Flux<String> chat_stream(@RequestBody ChatRequest request) {
+        // 简单的参数校验（不可为空）
         if(request.getSessionId()==null){
-            response.setStatus(Constants.ERROR_CODE_BAD_REQUEST);
-            return;
+            return Flux.just("data: {\"choices\":[{\"index\":0,\"text\":\"缺少session_id\",\"finish_reason\":\"stop\",\"model\":\"gpt-4o-mini\"}]}\n\n");
         }
         if(request.getMessages()==null){
-            response.setStatus(Constants.ERROR_CODE_BAD_REQUEST);
-            return;
+            return Flux.just("data: {\"choices\":[{\"index\":0,\"text\":\"缺少messages\",\"finish_reason\":\"stop\",\"model\":\"gpt-4o-mini\"}]}\n\n");
         }
         if(request.getUserId()==null){
-            response.setStatus(Constants.ERROR_CODE_BAD_REQUEST);
-            return;
+            return Flux.just("data: {\"choices\":[{\"index\":0,\"text\":\"缺少user_id\",\"finish_reason\":\"stop\",\"model\":\"gpt-4o-mini\"}]}\n\n");
         }
-
         try {
-            // 调用业务层进行聊天逻辑
-            chatService.chat(request.getSessionId(), request.getMessages(), request.getUserId(), true, response);
+            return chatService.chat(request.getSessionId(), request.getMessages(), request.getUserId(), true);
         } catch (InputValidationException e) {
-            // 捕获到用户不当输入的错误
-            // response.setStatus(Constants.ERROR_CODE_BAD_REQUEST);
-            
-            response.setContentType("text/event-stream; charset=UTF-8");
-            response.setCharacterEncoding("UTF-8");
-            response.setHeader("Cache-Control", "no-cache");
             String errEvent = String.format(
-                "data: {\"choices\":[{\"index\":0,\"text\":\"%s\",\"finish_reason\":\"%s\",\"model\":\"%s\"}]}%n%n",
+                "data: {\"choices\":[{\"index\":0,\"text\":\"%s\",\"finish_reason\":\"%s\",\"model\":\"%s\"}]}\n\n",
                 "输入含不当内容，请修改后重试", "stop", "gpt-4o-mini"
             );
-            try {
-                // 直接返回具体的校验失败消息
-                response.getWriter().write(errEvent);
-                response.getWriter().flush();
-            } catch (Exception ignored) {}
-
+            return Flux.just(errEvent);
         } catch (Exception e) {
             log.error("聊天服务异常: {}", e.getMessage(), e);
-            
-            // 捕获所有其他异常，返回通用错误码和消息
-            // response.setStatus(Constants.ERROR_CODE_SERVER_ERROR);
-            response.setContentType("text/event-stream; charset=UTF-8");
-            response.setCharacterEncoding("UTF-8");
-            response.setHeader("Cache-Control", "no-cache");
             String errEvent = String.format(
-                "data: {\"choices\":[{\"index\":0,\"text\":\"%s\",\"finish_reason\":\"%s\",\"model\":\"%s\"}]}%n%n",
+                "data: {\"choices\":[{\"index\":0,\"text\":\"%s\",\"finish_reason\":\"%s\",\"model\":\"%s\"}]}\n\n",
                 "内部服务器出错，请稍后重试", "stop", "gpt-4o-mini"
             );
-            try {
-                response.getWriter().write(errEvent);
-                response.getWriter().flush();
-            } catch (Exception ignored) {}
+            return Flux.just(errEvent);
         }
     }
 

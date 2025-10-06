@@ -14,7 +14,6 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.service.AiServices;
-import dev.langchain4j.service.TokenStream;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +25,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.List;
 import java.time.Instant;
+import reactor.core.publisher.Flux;
 
 /**
  * 会话隔离的AI助手服务工厂
@@ -51,9 +51,11 @@ public class MemoryAssistantServiceFactory {
     @Value("${mcp.max-history-messages:20}")
     private Integer maxHistoryMessages;
     
+    // MCP工具结果裁剪的最大长度配置
     @Value("${mcp.result-truncation.max-length:2000}")
     private int maxMcpResultLength;
     
+    // 是否启用MCP工具结果裁剪功能
     @Value("${mcp.result-truncation.enabled:true}")
     private boolean mcpTruncationEnabled;
 
@@ -187,19 +189,22 @@ public class MemoryAssistantServiceFactory {
         // 构建AI服务
         try {
             AssistantService assistantService = AiServices.builder(AssistantService.class)
-                    .streamingChatModel(streamingModel)
-                    .tools((Object[]) toolManager.getAllTools())
+                    .streamingChatModel(streamingModel)                     // 流式模型
+                    .tools((Object[]) toolManager.getAllTools())            // Function Call 工具
                     // .tools(new WeatherTool())
-                    // .toolProvider(mcpClientService.createToolProvider())
-                    .chatMemoryProvider(chatMemoryProvider::apply)
-                    .maxSequentialToolsInvocations(1)  // 最多连续调用 1 次工具
-                    .inputGuardrails(new PromptSafetyInputGuardrail())
+                    .toolProvider(mcpClientService.createToolProvider())    // 调用MCP工具，MCP工具提供者
+                    .chatMemoryProvider(chatMemoryProvider::apply)          // 记忆存储，使用sessionId作为唯一键，Redis会自动加前缀
+                    .maxSequentialToolsInvocations(1)                       // 最多连续调用 1 次工具，避免工具调用幻觉
+                    .inputGuardrails(new PromptSafetyInputGuardrail())      // 输入护轨
+                    // .outputGuardrails(new RetryOutputGuardrail())        // 输出护轨
                     .build();
             
             log.info("AI服务构建成功，记忆存储类型: {}", chatMemoryStore.getClass().getSimpleName());
+            // 返回AI服务实例
             return assistantService;
         } catch (Exception e) {
             log.error("AI服务构建失败", e);
+            // 抛出异常
             throw new RuntimeException("AI服务初始化失败", e);
         }
     }
@@ -210,7 +215,7 @@ public class MemoryAssistantServiceFactory {
      * - 通过缓存获取或创建会话级 AssistantService
      * - 以 sessionId 作为 @MemoryId，保障会话级隔离
      */
-    public TokenStream chatStream(String sessionId, String userId, String message) {
+    public Flux<String> chatStream(String sessionId, String userId, String message) {
         log.info("开始流式对话，会话ID: {}, 用户ID: {}, 消息: {}", sessionId, userId, message);
 
 
