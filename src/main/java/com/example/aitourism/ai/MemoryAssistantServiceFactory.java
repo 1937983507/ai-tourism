@@ -189,20 +189,22 @@ public class MemoryAssistantServiceFactory {
         // 构建AI服务
         try {
             AssistantService assistantService = AiServices.builder(AssistantService.class)
-                    .streamingChatModel(streamingModel)
-                    .tools((Object[]) toolManager.getAllTools())
+                    .streamingChatModel(streamingModel)                     // 流式模型
+                    .tools((Object[]) toolManager.getAllTools())            // Function Call 工具
                     // .tools(new WeatherTool())
-                    // .toolProvider(mcpClientService.createToolProvider())
-                    .chatMemoryProvider(chatMemoryProvider::apply)
-                    .maxSequentialToolsInvocations(1)  // 最多连续调用 1 次工具
-                    .inputGuardrails(new PromptSafetyInputGuardrail())  // 输入护轨
-                    // .outputGuardrails(new RetryOutputGuardrail())  // 输出护轨
+                    .toolProvider(mcpClientService.createToolProvider())    // 调用MCP工具，MCP工具提供者
+                    .chatMemoryProvider(chatMemoryProvider::apply)          // 记忆存储，使用sessionId作为唯一键，Redis会自动加前缀
+                    .maxSequentialToolsInvocations(1)                       // 最多连续调用 1 次工具，避免工具调用幻觉
+                    .inputGuardrails(new PromptSafetyInputGuardrail())      // 输入护轨
+                    // .outputGuardrails(new RetryOutputGuardrail())        // 输出护轨
                     .build();
             
             log.info("AI服务构建成功，记忆存储类型: {}", chatMemoryStore.getClass().getSimpleName());
+            // 返回AI服务实例
             return assistantService;
         } catch (Exception e) {
             log.error("AI服务构建失败", e);
+            // 抛出异常
             throw new RuntimeException("AI服务初始化失败", e);
         }
     }

@@ -98,6 +98,7 @@ public class MemoryChatServiceImpl implements ChatService {
         final StringBuilder reply = new StringBuilder();
 
         if (!stream) {
+            // 非流式返回已经被废弃
             log.info("非流式返回");
             String nonStream = "这是针对[" + messages + "]的返回内容";
             return Flux.just(String.format("data: {\"choices\":[{\"index\":0,\"text\":\"%s\",\"finish_reason\":\"stop\",\"model\":\"%s\"}]}\n\n", nonStream, modelName))
@@ -299,15 +300,27 @@ public class MemoryChatServiceImpl implements ChatService {
                     .baseUrl(baseUrlSmall)
                     .modelName(modelNameSmall)
                     .build();
-            String template = "请根据用户以下的问题生成一个会话标题，注意需要严格限制字数在8个中文字以内！用户问题为:{{problem}} ";
+            String template = """
+                    请根据用户以下的问题生成一个会话标题，注意需要严格限制字数在10个中文字以内！
+                    示例输入："请为我规划北京市3日旅游攻略。"
+                    示例输出："北京3日旅游攻略"。
+                    示例输入："请为我规划广州市3日旅游攻略，我喜欢一些文艺景点。"
+                    示例输出："广州3日文艺旅游攻略"。
+                    示例输入："请为我规划深圳市3日旅游攻略，我喜欢一些现代景点。"
+                    示例输出："深圳3日现代旅游攻略"。
+                    用户输入为:{{problem}}
+                    """;
             PromptTemplate promptTemplate = PromptTemplate.from(template);
             Map<String, Object> variables = new HashMap<>();
+            // 对输入进行截断
             String trimmed = message;
             if (trimmed != null && trimmed.length() > 4000) {
                 trimmed = trimmed.substring(0, 4000);
             }
+            // 拼接 Prompt
             variables.put("problem", trimmed);
             Prompt prompt = promptTemplate.apply(variables);
+            // 向模型发起问题
             return stripSurroundingDoubleQuotes(model.chat(prompt.text()));
         });
     }
