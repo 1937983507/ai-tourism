@@ -16,23 +16,20 @@ import com.example.aitourism.service.ChatService;
 import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
 import dev.langchain4j.model.chat.request.json.JsonSchemaElement;
 import dev.langchain4j.model.chat.response.ChatResponse;
-import dev.langchain4j.rag.content.Content;
-import dev.langchain4j.service.TokenStream;
-import dev.langchain4j.service.tool.ToolExecution;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.io.PrintWriter;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.request.json.JsonArraySchema;
 import dev.langchain4j.model.chat.request.json.JsonSchema;
 import dev.langchain4j.model.chat.request.ResponseFormat;
-import dev.langchain4j.model.chat.request.ResponseFormatType;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.model.input.Prompt;
 import dev.langchain4j.model.input.PromptTemplate;
@@ -40,6 +37,7 @@ import static dev.langchain4j.model.chat.request.ResponseFormatType.JSON;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import dev.langchain4j.data.message.UserMessage;
+import reactor.core.publisher.Flux;
 
 /**
  * 会话隔离的聊天服务实现
@@ -64,17 +62,25 @@ public class MemoryChatServiceImpl implements ChatService {
         // this.memoryStoreService = memoryStoreService;
     }
 
+    // 主模型
     @Value("${openai.api-key}")
     private String apiKey;
-
     @Value("${openai.base-url}")
     private String baseUrl;
-
     @Value("${openai.model-name}")
     private String modelName;
 
+    // 小模型
+    @Value("${openai-small.api-key}")
+    private String apiKeySmall;
+    @Value("${openai-small.base-url}")
+    private String baseUrlSmall;
+    @Value("${openai-small.model-name}")
+    private String modelNameSmall;
+
+    // 对话请求（Reactor流式）
     @Override
-    public String chat(String sessionId, String messages, String userId, Boolean stream, HttpServletResponse response) throws Exception {
+    public Flux<String> chat(String sessionId, String messages, String userId, Boolean stream) throws Exception {
         log.info("用户 {} 在会话 {} 中提问：{}", userId, sessionId, messages);
 
         // 确保AI服务可用
@@ -93,93 +99,72 @@ public class MemoryChatServiceImpl implements ChatService {
 
         if (!stream) {
             log.info("非流式返回");
-            reply.append("这是针对[").append(messages).append("]的返回内容");
-        } else {
-            log.info("流式返回 - 会话隔离模式");
-            
-            // 使用会话隔离的AI服务进行流式对话
-            TokenStream tokenStream = assistantServiceFactory.chatStream(sessionId, userId, messages);
-
-            response.setContentType("text/event-stream");
-            response.setCharacterEncoding("UTF-8");
-            response.setHeader("Cache-Control", "no-cache");
-
-            PrintWriter out = response.getWriter();
-
-            CompletableFuture<ChatResponse> futureResponse = new CompletableFuture<>();
-
-            tokenStream.onPartialResponse(token -> {
-                        String esc = token.replace("\n", "\\n");
-                        log.debug("SSE token chunk: {}", esc);
-                        String tokenData = String.format(
-                                "data: {\"choices\":[{\"index\":0,\"text\":\"%s\",\"finish_reason\":\"%s\",\"model\":\"%s\"}]}%n%n",
-                                esc, "stop", modelName
-                        );
-                        reply.append(esc);
-
-                        out.write(tokenData);
-                        out.flush();
-                    })
-                    .onRetrieved((List<Content> contents) -> log.info("检索到的内容: {}", contents.toString()))
-                    .onToolExecuted((ToolExecution toolExecution) -> log.info("工具执行: {}", toolExecution.toString()))
-                    .onCompleteResponse(futureResponse::complete)
-                    .onError(error -> {
-                        futureResponse.completeExceptionally(error);
+            String nonStream = "这是针对[" + messages + "]的返回内容";
+            return Flux.just(String.format("data: {\"choices\":[{\"index\":0,\"text\":\"%s\",\"finish_reason\":\"stop\",\"model\":\"%s\"}]}\n\n", nonStream, modelName))
+                    .doOnComplete(() -> {
                         try {
-                            String refined = refineErrorMessage(error).replace("\n", "\\n");
-                            String errEvent = String.format(
-                                "data: {\"choices\":[{\"index\":0,\"text\":\"%s\",\"finish_reason\":\"%s\",\"model\":\"%s\"}]}%n%n",
-                                refined, "stop", modelName
-                            );
-                            reply.append(refined);
-                            out.write(errEvent);
-                            out.flush();
-                        } catch (Exception ignored) {}
-                    })
-                    .start();
-
-            try {
-                futureResponse.get(300, SECONDS);
-            } catch (Exception ex) {
-                log.error("SSE streaming failed: {}", ex.getMessage(), ex);
-            }
-
-            out.write("data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n");
-            out.flush();
+                            saveAssistantMessage(sessionId, userId, nonStream, session.getTitle());
+                            CompletableFuture<String> dailyRoutesFuture = getDailyRoutes(nonStream);
+                            String dailyRoutes = dailyRoutesFuture.get(10, SECONDS);
+                            if (validateDailyRoutesJson(dailyRoutes)) {
+                                sessionMapper.updateRoutine(dailyRoutes, sessionId);
+                            }
+                        } catch (Exception e) {
+                            log.warn("非流式后处理失败: {}", e.getMessage());
+                        }
+                    });
         }
 
-        log.info("AI回复：{}", reply);
-        log.info("开始生成路线结构体对象");
+        // 流式返回（基于Reactor）
+        Flux<String> modelFlux = assistantServiceFactory.chatStream(sessionId, userId, messages);
 
-        // 异步生成路线结构
-        CompletableFuture<String> dailyRoutesFuture = getDailyRoutes(reply.toString());
-        String dailyRoutes = dailyRoutesFuture.get(10, SECONDS);
-        log.info("生成的路线结构：{}", dailyRoutes);
-        
-        // 验证并保存路线数据
-        if (validateDailyRoutesJson(dailyRoutes)) {
-            sessionMapper.updateRoutine(dailyRoutes, sessionId);
-            log.info("路线数据验证通过，已更新到数据库");
-        } else {
-            log.warn("路线数据格式验证失败，跳过数据库更新");
-        }
-
-        // 保存AI回复到数据库
-        saveAssistantMessage(sessionId, userId, reply.toString(), session.getTitle());
-
-        return reply.toString();
+        return modelFlux
+                .doOnNext(token -> reply.append(token))
+                .map(token -> String.format(
+                        "data: {\"choices\":[{\"index\":0,\"text\":\"%s\",\"finish_reason\":\"%s\",\"model\":\"%s\"}]}\n\n",
+                        token.replace("\n", "\\n"), "stop", modelName
+                ))
+                .onErrorResume(error -> {
+                    String refined = refineErrorMessage(error).replace("\n", "\\n");
+                    String errEvent = String.format(
+                            "data: {\"choices\":[{\"index\":0,\"text\":\"%s\",\"finish_reason\":\"%s\",\"model\":\"%s\"}]}\n\n",
+                            refined, "stop", modelName
+                    );
+                    reply.append(refined);
+                    return Flux.just(errEvent);
+                })
+                .concatWith(Flux.just("data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"))
+                .doOnComplete(() -> {
+                    try {
+                        saveAssistantMessage(sessionId, userId, reply.toString(), session.getTitle());
+                        CompletableFuture<String> dailyRoutesFuture = getDailyRoutes(reply.toString());
+                        String dailyRoutes = dailyRoutesFuture.get(10, SECONDS);
+                        if (validateDailyRoutesJson(dailyRoutes)) {
+                            sessionMapper.updateRoutine(dailyRoutes, sessionId);
+                            log.info("路线数据验证通过，已更新到数据库");
+                        } else {
+                            log.warn("路线数据格式验证失败，跳过数据库更新");
+                        }
+                    } catch (Exception ex) {
+                        log.error("流式完成后处理失败: {}", ex.getMessage(), ex);
+                    }
+                });
     }
 
-    /**
-     * 获取或创建会话
-     */
-    private Session getOrCreateSession(String sessionId, String userId, String messages) {
+    // 获取或创建会话
+    private Session getOrCreateSession(String sessionId, String userId, String messages) throws InterruptedException, ExecutionException, TimeoutException {
+        // 创建 session 对象
         Session session = sessionMapper.findBySessionId(sessionId);
+
+
+        String title = messages;
+
+        // 如果 session 对象不存在，则创建新的 session 对象
         if (session == null) {
             session = new Session();
             session.setSessionId(sessionId);
-            session.setUserName("default_user");
-            session.setTitle(messages.length() > 10 ? messages.substring(0, 10) : messages);
+            session.setUserName("default_user");  // TODO 改成用户名
+            session.setTitle(title.length() > 10 ? title.substring(0, 10) : title);
             session.setUserId(userId);
             sessionMapper.insert(session);
             log.info("创建新会话：{} 用户：{}", sessionId, userId);
@@ -187,10 +172,9 @@ public class MemoryChatServiceImpl implements ChatService {
         return session;
     }
 
-    /**
-     * 保存用户消息
-     */
+    // 保存用户消息
     private void saveUserMessage(String sessionId, String userId, String content, String title) {
+        // 将用户消息保存到数据库
         Message userMsg = new Message();
         userMsg.setMsgId(UUID.randomUUID().toString());
         userMsg.setSessionId(sessionId);
@@ -202,10 +186,9 @@ public class MemoryChatServiceImpl implements ChatService {
         log.debug("保存用户消息：会话 {} 用户 {}", sessionId, userId);
     }
 
-    /**
-     * 保存AI回复
-     */
+    // 保存AI回复
     private void saveAssistantMessage(String sessionId, String userId, String content, String title) {
+        // 将AI返回消息保存到数据库
         Message assistantMsg = new Message();
         assistantMsg.setMsgId(UUID.randomUUID().toString());
         assistantMsg.setSessionId(sessionId);
@@ -217,9 +200,7 @@ public class MemoryChatServiceImpl implements ChatService {
         log.debug("保存AI回复：会话 {} 用户 {}", sessionId, userId);
     }
 
-    /**
-     * 清除会话记忆
-     */
+    // 清除会话记忆（暂未使用）
     public void clearSessionMemory(String sessionId, String userId) {
         try {
             // 清除AI服务缓存
@@ -233,9 +214,7 @@ public class MemoryChatServiceImpl implements ChatService {
         }
     }
 
-    /**
-     * 清除用户所有会话记忆
-     */
+    // 清除用户所有会话记忆（暂未使用）
     public void clearUserMemory(String userId) {
         try {
             // 清除用户所有AI服务缓存
@@ -246,6 +225,8 @@ public class MemoryChatServiceImpl implements ChatService {
         }
     }
 
+
+    // 获取当前会话历史
     @Override
     public ChatHistoryResponse getHistory(String sessionId) {
         List<Message> messages = chatMessageMapper.findBySessionId(sessionId);
@@ -262,6 +243,7 @@ public class MemoryChatServiceImpl implements ChatService {
         return resp;
     }
 
+    // 获取会话列表
     @Override
     public SessionListResponse getSessionList(Integer page, Integer pageSize, String userId) {
         int offset = (page - 1) * pageSize;
@@ -283,7 +265,8 @@ public class MemoryChatServiceImpl implements ChatService {
         return resp;
     }
 
-    // 以下方法保持原有实现...
+
+    // 用于抛出异常
     private String refineErrorMessage(Throwable error) {
         if (error == null) {
             return "服务暂不可用，请稍后重试";
@@ -298,9 +281,9 @@ public class MemoryChatServiceImpl implements ChatService {
         return "对话服务暂时出现波动，请稍后再试";
     }
 
-    
     // 异步生成路线对象
     private CompletableFuture<String> getDailyRoutes(String reply){
+        // 这里需要模型能够支持JSON Schema，所以使用主模型
         return CompletableFuture.supplyAsync(() -> {
 
             JsonSchemaElement root = JsonObjectSchema.builder()
@@ -376,7 +359,6 @@ public class MemoryChatServiceImpl implements ChatService {
             return chatResponse.aiMessage().text();
         });
     }
-
 
     // 检查生成的路线结构体对象是否格式正确
     private boolean validateDailyRoutesJson(String jsonString) {
