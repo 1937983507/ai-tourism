@@ -119,12 +119,13 @@ public class MemoryChatServiceImpl implements ChatService {
         Flux<String> modelFlux = assistantServiceFactory.chatStream(sessionId, userId, messages);
 
         return modelFlux
-                .doOnNext(token -> reply.append(token))
-                .map(token -> String.format(
+                .doOnNext(token -> reply.append(token)) // 收集AI响应内容
+                .map(token -> String.format( // 格式化响应内容
                         "data: {\"choices\":[{\"index\":0,\"text\":\"%s\",\"finish_reason\":\"%s\",\"model\":\"%s\"}]}\n\n",
                         token.replace("\n", "\\n"), "stop", modelName
                 ))
-                .onErrorResume(error -> {
+                .onErrorResume(error -> { // 处理错误
+                    log.error("流式过程中出现错误: {}", error.getMessage());
                     String refined = refineErrorMessage(error).replace("\n", "\\n");
                     String errEvent = String.format(
                             "data: {\"choices\":[{\"index\":0,\"text\":\"%s\",\"finish_reason\":\"%s\",\"model\":\"%s\"}]}\n\n",
@@ -133,12 +134,16 @@ public class MemoryChatServiceImpl implements ChatService {
                     reply.append(refined);
                     return Flux.just(errEvent);
                 })
-                .concatWith(Flux.just("data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"))
-                .doOnComplete(() -> {
-                    try {
+                .concatWith(Flux.just("data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n"))  // 添加结束事件
+                .doOnComplete(() -> { // 完成后处理
+                    try { // 保存AI回复
+                        log.info("流式完成后处理");
+                        // 保存AI回复的内容到数据库中
                         saveAssistantMessage(sessionId, userId, reply.toString(), session.getTitle());
-                        CompletableFuture<String> dailyRoutesFuture = getDailyRoutes(reply.toString());
+                        // 生成路线结构体
+                        CompletableFuture<String> dailyRoutesFuture = getDailyRoutes(reply.toString()); 
                         String dailyRoutes = dailyRoutesFuture.get(10, SECONDS);
+                        // 校验生成的路径结构体是否符合要求
                         if (validateDailyRoutesJson(dailyRoutes)) {
                             sessionMapper.updateRoutine(dailyRoutes, sessionId);
                             log.info("路线数据验证通过，已更新到数据库");
@@ -156,11 +161,14 @@ public class MemoryChatServiceImpl implements ChatService {
         // 创建 session 对象
         Session session = sessionMapper.findBySessionId(sessionId);
 
-
-        String title = messages;
-
         // 如果 session 对象不存在，则创建新的 session 对象
         if (session == null) {
+
+            // 异步获取标题
+            CompletableFuture<String> dailyRoutesFuture = getTitleAsync(messages);
+            String title = dailyRoutesFuture.get(10, SECONDS);
+            log.info("生成的标题：{}", title);
+
             session = new Session();
             session.setSessionId(sessionId);
             session.setUserName("default_user");  // TODO 改成用户名
@@ -281,6 +289,29 @@ public class MemoryChatServiceImpl implements ChatService {
         return "对话服务暂时出现波动，请稍后再试";
     }
 
+
+     // 异步生成标题
+     private CompletableFuture<String> getTitleAsync(String message){
+        // 这里就使用小模型进行标题的生成即可
+        return CompletableFuture.supplyAsync(() -> {
+            OpenAiChatModel model = OpenAiChatModel.builder()
+                    .apiKey(apiKeySmall)
+                    .baseUrl(baseUrlSmall)
+                    .modelName(modelNameSmall)
+                    .build();
+            String template = "请根据用户以下的问题生成一个会话标题，注意需要严格限制字数在8个中文字以内！用户问题为:{{problem}} ";
+            PromptTemplate promptTemplate = PromptTemplate.from(template);
+            Map<String, Object> variables = new HashMap<>();
+            String trimmed = message;
+            if (trimmed != null && trimmed.length() > 4000) {
+                trimmed = trimmed.substring(0, 4000);
+            }
+            variables.put("problem", trimmed);
+            Prompt prompt = promptTemplate.apply(variables);
+            return stripSurroundingDoubleQuotes(model.chat(prompt.text()));
+        });
+    }
+
     // 异步生成路线对象
     private CompletableFuture<String> getDailyRoutes(String reply){
         // 这里需要模型能够支持JSON Schema，所以使用主模型
@@ -378,5 +409,17 @@ public class MemoryChatServiceImpl implements ChatService {
             log.error("JSON格式验证失败：{}", e.getMessage());
             return false;
         }
+    }
+
+    // 移除首尾双引号（若存在）
+    private String stripSurroundingDoubleQuotes(String input) {
+        if (input == null) {
+            return null;
+        }
+        String trimmed = input.trim();
+        if (trimmed.length() >= 2 && trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
+            return trimmed.substring(1, trimmed.length() - 1);
+        }
+        return trimmed;
     }
 }
