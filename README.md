@@ -21,7 +21,7 @@
 ![前端效果图](assets/界面图.png)
 
 ## 视频效果
-![视频效果TODO待补充](assets/视频效果.png)
+![演示视频](./assets/demo.mp4)
 
 ---
 
