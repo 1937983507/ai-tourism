@@ -48,7 +48,7 @@ mcp:
     tool-specific-limits: "baidu_search:1500,fetchJuejinArticle:1000"
   clients:
     - name: "amap"
-      sse-url: "https://mcp.amap.com/sse?key=xxx"
+      sse-url: "https://mcp.amap.com/sse?key=a7a5be837d1645cd49c74a601187bc35"
       log-requests: true
       log-responses: true
       timeout-seconds: 600
@@ -59,14 +59,21 @@ mcp:
     #   timeout-seconds: 600
 
 openweather:
-  api-key: "xxx"
+  api-key: "7ca6918502f4ea2ef64568da06916c0f"
 
-# OpenAI配置
+# OpenAI配置（主模型）
 openai:
-  api-key: "xxx"
+  api-key: "sk-O5VvgPh3jH19zSE0wkxXwVz6P715WDlPwONNiHd7XOcJLTb6"
 #  base-url: "https://api.chatanywhere.tech/v1"  # 国内节点
   base-url: "https://api.chatanywhere.org"      # 国外节点
   model-name: "gpt-4o-mini"
+  max-output-tokens: 800
+
+# OpenAI配置（小模型）
+openai-small:
+  api-key: "xxx"
+  base-url: "http://localhost:11434/v1"      # 本地 Ollama 模型
+  model-name: "qwen2.5:1.5b"
   max-output-tokens: 800
 
 # HTTP客户端配置
