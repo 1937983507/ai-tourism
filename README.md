@@ -12,16 +12,18 @@
   **核心特性**包括：
   - 多轮对话与上下文记忆
   - 地图路线可视化
+  - MCP 灵活热插拔 与 Tool 统一注册  
   - 安全认证与权限管理
-  - MCP 灵活热插拔 与 Tool 统一注册
 
 ---
 
 ### AI 智能旅游规划 前端效果截图：
 ![前端效果图](assets/界面图.png)
 
-## 视频效果
+### 视频效果
 ![演示视频](./assets/demo.gif)
+
+AI 智能旅游规划系统。结合 SpringBoot 与 LangChain4j，在用户输入自然语言后，由 AI Agent 调用 MCP 工具与 Function Call 获取天气、景点等信息，由前端同时渲染文字版路线规划与结构化地图路线。
 
 ---
 
@@ -64,17 +66,22 @@
 
 ## 🏗️ 系统整体架构
 
-> ![系统整体架构图示例TODO待补充](doc/ai-tourism-architecture.png)
-
 **架构说明：**
 
-- **前端**：负责用户交互、地图渲染、AI 对话展示。
-- **API 控制层**：统一入口，负责请求分发、权限校验。
-- **AI Agent 服务层**：基于 LangChain4j，负责多轮对话、工具调用、上下文记忆。
-- **工具管理与缓存层**：ToolManager 统一注册与调度工具，Caffeine 缓存防抖，Redis 管理会话记忆。
-- **业务服务层**：用户、权限、会话、消息等业务逻辑。
-- **数据持久化层**：MySQL 存储用户、角色、权限、会话、消息等。
-- **监控与日志**：Prometheus + Grafana 实时监控，SLF4j 日志追踪。
+- **前端（ai-tourism-frontend）**：Vue 应用，负责交互、地图渲染与对话展示；通过 SSE 调用 `POST /ai_assistant/chat-stream` 实时消费模型输出。
+- **接入层（Controller + 鉴权）**：基于 Spring Boot REST，使用 Sa-Token 进行登录与权限校验（如 `@SaCheckLogin`、`@SaCheckPermission`）。
+- **服务层（MemoryChatServiceImpl）**：统一处理请求校验、获取会话历史、获取会话列表、消息入库、SSE 流式返回。
+- **AI Service（MemoryAssistantServiceFactory）**：按会话构建隔离的 `AssistantService` 实例，整合 OpenAI 流式模型、`MessageWindowChatMemory`（基于 `ChatMemoryStore`）、输入护轨、工具调用；同时使用 Caffeine 按 `sessionId` 缓存实例，避免重复创建。
+- **记忆与历史（Redis + MySQL）**：
+  - 短期对话记忆：`CustomRedisChatMemoryStore` 基于 Redis 进行管理，同时支持 MySQL 消息填入。
+  - 长期历史与结构化数据：通过 MyBatis 写入 MySQL（会话表、消息表、路线 JSON）。
+- **工具调用（Function Call + MCP）**：
+  - Function Call：`ToolManager` 统一注册所有 `BaseTool`。
+  - MCP：基于 LangChain4j MCP，`McpClientService` 通过 SSE 创建 `ToolProvider`。
+- **缓存与防抖**：
+  - Caffeine：缓存 `AssistantService` 实例。
+  - Redis：承载对话记忆，降低数据库读写压力。
+- **可观测性与监控**：Micrometer 暴露 Prometheus 指标（管理端点已开放 `prometheus`）；`AiModelMonitorListener`/`AiModelMetricsCollector` 记录请求量、耗时、Token 使用、错误率、缓存命中等；Grafana 仪表盘见 `doc/Prometheus-Grafana.json`。
 
 ---
 
@@ -180,6 +187,33 @@ ai-tourism/
 
 ---
 
+## 🤖 AI 能力集成与多轮对话
+
+- AI 旅游助手具备：
+  - 天气查询、景点推荐、路线规划。
+  - 智能裁剪与摘要，自动结构化输出。
+  - 工具调用与异常兜底。
+- 模型调用：
+  - 对于路线规划采用大模型。
+  - 对于生成会话标题等任务选择参数量较小的模型。
+- 工具注册与调用：
+  - 所有 Function Call 工具均实现统一接口，注册到 ToolManager，支持运行时动态扩展与管理。
+  - 工具调用结果采用 Caffeine 缓存，防止 LLM 重复请求外部服务，极大提升响应速度。
+  - MCP 工具注册与启用通过配置文件灵活管理。
+  - 支持未来扩展更多 AI 工具。
+- 多轮对话记忆：
+  - ChatMemoryStore 结合 Redis 管理短期记忆，未命中自动回退数据库，兼顾性能与数据安全。
+  - AI Service 实例以会话为单位缓存，支持多用户并发与上下文隔离。
+  - 支持上下文追溯，提升对话连贯性。
+- 安全与结构化输出：
+  - LangChain4j 输入护轨机制，前置校验请求内容，防止敏感词与 Prompt 注入攻击。
+  - 结合 Prompt few-shot 与 JSON Schema，输出结构化路线数据，前端可直接用于地图渲染。
+- Token 超限防护：
+  - JDK 动态代理拦截输出，ToolProvider 包装器二次截断。
+  - 智能摘要，保障响应内容不超限。
+
+---
+
 ## 📊 监控与可观测性（Prometheus + Grafana）
 
 系统已集成 Prometheus + Grafana 实现全链路监控，覆盖 AI 服务调用、工具缓存命中、Token 消耗、响应耗时、错误率等核心指标。
@@ -198,37 +232,9 @@ ai-tourism/
 
 ---
 
-## 🤖 AI 能力集成与多轮对话
-
-- 支持 OpenAI compatible LLM、MCP 工具、Function Call 等。
-- AI 旅游助手具备：
-  - 天气查询、景点推荐、路线规划。
-  - 智能裁剪与摘要，自动结构化输出。
-  - 工具调用与异常兜底。
-- 工具注册与调用：
-  - 所有 AI 工具均实现统一接口，注册到 ToolManager，支持运行时动态扩展与管理。
-  - 工具调用结果采用 Caffeine 缓存，防止 LLM 重复请求外部服务，极大提升响应速度。
-- 多轮对话记忆：
-  - ChatMemoryStore 结合 Redis 管理短期记忆，未命中自动回退数据库，兼顾性能与数据安全。
-  - AI Service 实例以会话为单位缓存，支持多用户并发与上下文隔离。
-- 安全与结构化输出：
-  - LangChain4j 输入护轨机制，前置校验请求内容，防止敏感词与 Prompt 注入攻击。
-  - 结合 Prompt few-shot 与 JSON Schema，输出结构化路线数据，前端可直接用于地图渲染。
-- 多轮对话：
-  - 每次对话均带有 sessionId，短期记忆在内存，长期记忆（历史会话、消息）存储于数据库。
-  - 支持上下文追溯，提升对话连贯性。
-- MCP 工具热插拔：
-  - 工具注册与启用通过配置文件灵活管理。
-  - 支持未来扩展更多 AI 工具。
-- Token 超限防护：
-  - JDK 动态代理拦截输出，ToolProvider 包装器二次截断。
-  - 智能摘要，保障响应内容不超限。
-
----
-
 ## 🛫 部署与运行
 
-1. 安装 JDK 21、Maven、MySQL 8.x
+1. 安装 JDK 21、Maven、MySQL 9.4
 2. 初始化数据库（执行 `sql/create_table.sql`）
 3. 配置 `application.yml` 数据库、AI api-Key 等参数
 4. 构建并运行：
@@ -267,9 +273,16 @@ ai-tourism/
 
 ## TODO list
 
-1、将结果导出为 h5 页面，然后手机扫码展示。
-2、将调用的工具也一起在前端渲染显示。
-3、左侧历史会话支持置顶、取消置顶、修改标题。
-4、可以提供更多的 MCP 服务，例如图片检索之类.
-5、对于某一城市的景点内容，可以存储在向量数据库中，若是能检索到则直接交给大模型输出；若是检索不到则调用MCP服务进行检索。
-6、对话框集成示例 prompt，用户可以直接选择，并修改部分细节即可发起请求。
+- 将结果导出为 h5 页面，然后手机扫码展示。
+- 将调用的工具也一起在前端渲染显示。
+- 左侧历史会话支持置顶、取消置顶、修改标题。
+- 可以提供更多的 MCP 服务，例如图片检索之类.
+- 对于某一城市的景点内容，可以存储在向量数据库中，若是能检索到则直接交给大模型输出；若是检索不到则调用MCP服务进行检索。
+- 对话框集成示例 prompt，用户可以直接选择，并修改部分细节即可发起请求。
+
+---
+
+## 核心基础代码
+
+含有 AI Service、MCP、Function Call 调用基础代码
+> 可参考 `doc/coreBasicCode.md` 文件。
