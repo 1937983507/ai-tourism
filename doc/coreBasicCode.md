@@ -134,6 +134,9 @@ public class MemoryAssistantServiceFactory {
     - 如需持久化，需实现 `ChatMemoryStore`（例如基于 Redis）。
 - LangChain4j 不管理“历史”持久化，这里结合 MySQL 实现持久化。
 - 短期记忆管理思路：实现 `ChatMemoryStore`接口，重写`get/update/delete` 读写 Redis；过期回源 MySQL 并回填 Redis。
+- 为什么使用 Redis 来管理短期记忆：
+    - 性能优势：Redis 作为一个内存数据库，读写性能要远高于 MySQL 数据库，对于需要频繁读写的对话记忆，可以提高更快的响应速度。
+    - 数据一致性与重启恢复：与内存记忆相比，Redis 可以在服务重启后依旧保留会话状态，保证了数据的持久性。
 ```java
 // 实现 ChatMemoryStore 接口，在其中基于 Redis 管理消息
 // 只要实现了 ChatMemoryStore 接口，LangChain4j 就会自动使用这个实现来管理消息
@@ -353,8 +356,10 @@ public class McpClientService {
 
 
 ## Function Call 开发与调用 <a id="function-call"></a>
-- 通过抽象 BaseTool 基类和利用 Spring 自动注入机制实现了 TooIManager。
-- 对所有 AI 工具进行统一注册和管理，提升系统的可扩展性。
+- 核心是 ToolManager 类 + Spring 框架的依赖注入。
+- 定义工具基类 BaseTool，该基类定义了所有工具都必须具备的通用方法行为，包括 getName、getDescription 等。
+- 项目中的每一具体的工具，都继承自 BaseTool 基类，并被声明为 Spring 的 Bean，这样就能被 Spring 容器自动扫描与管理。
+- TooIManager 注入 BaseTool 列表，将所有继承了 BaseTool 的 Bean 实例都收集起来，实现注入。对所有 AI 工具进行统一注册和管理，提升系统的可扩展性。
 - 日后要添加新的 Tool 工具，只需要继承 BaseTool，即可自动进行注入与注册。
 ```java
 
@@ -536,8 +541,10 @@ private CompletableFuture<String> getDailyRoutes(String reply){
 
 
 ## 输入护轨 <a id="input-guardrails"></a>
+- LangChain4j的护轨机制是一套用于保障 AI 应用安全和稳定性的拦截器系统，类似于 Web 应用中的过滤器或拦截器。
 - 对调用 AI 的请求进行安全审查，有效拒绝敏感词和防范注入攻击。
-- 实现 InputGuardrail 接口，重写 validate 方法。
+- 实现 InputGuardrail 接口，重写 validate 方法，在其中匹配字符串匹配敏感词、正则匹配注入攻击模式。
+- 最后在创建 AI Service 的时候注入 inputGuardrails 即可。
 ```java
 /**
  * Prompt 安全审查护轨，用于检测用户输入中的敏感词和提示注入攻击。
