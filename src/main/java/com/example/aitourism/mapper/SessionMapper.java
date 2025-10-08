@@ -27,4 +27,12 @@ public interface SessionMapper {
     @Update("UPDATE t_ai_assistant_sessions SET daily_routes = #{dailyRoutes} WHERE session_id = #{sessionId} ")
     void updateRoutine(@Param("dailyRoutes") String dailyRoutes, @Param("sessionId") String sessionId);
 
+    // 删除会话
+    @Delete("DELETE FROM t_ai_assistant_sessions WHERE session_id = #{sessionId}")
+    int deleteBySessionId(@Param("sessionId") String sessionId);
+
+    // 修改会话标题
+    @Update("UPDATE t_ai_assistant_sessions SET title = #{title} WHERE session_id = #{sessionId}")
+    int updateTitle(@Param("sessionId") String sessionId, @Param("title") String title);
+
 }
