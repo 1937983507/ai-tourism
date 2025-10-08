@@ -241,7 +241,11 @@ public class MemoryChatServiceImpl implements ChatService {
         List<Message> messages = chatMessageMapper.findBySessionId(sessionId);
         List<ChatHistoryDTO> result = new ArrayList<>();
         for (Message m : messages) {
-            ChatHistoryDTO dto = new ChatHistoryDTO(m.getMsgId(), m.getRole(), m.getContent());
+            ChatHistoryDTO dto = new ChatHistoryDTO();
+            dto.setMsgId(m.getMsgId());
+            dto.setRole(m.getRole());
+            dto.setContent(m.getContent());
+            dto.setModifyTime(m.getModifyTime() != null ? m.getModifyTime().toString() : null);
             result.add(dto);
         }
 

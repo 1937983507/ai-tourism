@@ -14,6 +14,7 @@ public class ChatHistoryDTO {
     private String msgId;
     private String role;   // user 或 assistant
     private String content;
+    private String modifyTime; // 消息修改时间（字符串）
 
     public String getMsgId() {
         return msgId;
@@ -37,5 +38,13 @@ public class ChatHistoryDTO {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public String getModifyTime() {
+        return modifyTime;
+    }
+
+    public void setModifyTime(String modifyTime) {
+        this.modifyTime = modifyTime;
     }
 }
