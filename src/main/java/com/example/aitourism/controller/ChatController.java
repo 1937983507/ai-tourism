@@ -25,6 +25,47 @@ public class ChatController {
         this.chatService = chatService;
     }
 
+    /**
+     * 修改历史会话属性（0:置顶、1:取消置顶、2删除、3改标题）
+     */
+    @SaCheckLogin
+    @SaCheckPermission("ai:session")
+    @PostMapping("/session_modify")
+    public BaseResponse<Void> sessionModify(@RequestBody SessionModifyRequest request) {
+        if (request.getSessionId() == null) {
+            return BaseResponse.error(Constants.ERROR_CODE_BAD_REQUEST, "缺少请求参数 session_id");
+        }
+        if (request.getOpType() == null) {
+            return BaseResponse.error(Constants.ERROR_CODE_BAD_REQUEST, "缺少请求参数 op_type");
+        }
+
+        try {
+            int op = request.getOpType();
+            switch (op) {
+                case 2: // 删除
+                    boolean deleted = chatService.deleteSession(request.getSessionId());
+                    if (!deleted) {
+                        return BaseResponse.error(Constants.ERROR_CODE_BAD_REQUEST, "删除失败或会话不存在");
+                    }
+                    return BaseResponse.success();
+                case 3: // 改标题
+                    if (request.getTitle() == null || request.getTitle().trim().isEmpty()) {
+                        return BaseResponse.error(Constants.ERROR_CODE_BAD_REQUEST, "缺少请求参数 title");
+                    }
+                    boolean renamed = chatService.renameSession(request.getSessionId(), request.getTitle().trim());
+                    if (!renamed) {
+                        return BaseResponse.error(Constants.ERROR_CODE_BAD_REQUEST, "修改标题失败或会话不存在");
+                    }
+                    return BaseResponse.success();
+                default:
+                    return BaseResponse.error(Constants.ERROR_CODE_BAD_REQUEST, "暂不支持的操作类型");
+            }
+        } catch (Exception e) {
+            log.error("会话修改异常: {}", e.getMessage(), e);
+            return BaseResponse.error(Constants.ERROR_CODE_SERVER_ERROR, "内部服务器出错: " + e.getMessage());
+        }
+    }
+
 
     /**
      * 发起流式对话（SSE）

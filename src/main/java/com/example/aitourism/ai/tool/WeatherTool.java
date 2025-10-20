@@ -29,7 +29,6 @@ import java.time.Instant;
 
 @Component
 @Slf4j
-// public class WeatherTool {
 public class WeatherTool extends BaseTool {
     
     // 地理编码地址
@@ -69,6 +68,9 @@ public class WeatherTool extends BaseTool {
             @P("城市名称，例如: 北京 / Shanghai / New York") String cityName,
             @P("要返回的预测天数，范围1-16") Integer dayCount
     ) {
+
+        // log.info("开始调用weatherForecast工具，城市名称: {}, 天数: {}", cityName, dayCount);
+
         // 获取监控上下文
         MonitorContext context = MonitorContextHolder.getContext();
         String userId = context != null ? context.getUserId() : "unknown";

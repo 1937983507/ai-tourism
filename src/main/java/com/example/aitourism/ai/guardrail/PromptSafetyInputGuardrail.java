@@ -23,11 +23,11 @@ public class PromptSafetyInputGuardrail implements InputGuardrail {
 
     // 注入攻击模式，用于检测提示注入攻击的正则表达式模式列表。
     private static final List<Pattern> PROMPT_INJECTION_REGEX_LIST = Arrays.asList(
-            Pattern.compile("(?i)ignore\\s+(?:previous|above|all)\\s+(?:instructions?|commands?|prompts?)"),
-            Pattern.compile("(?i)(?:forget|disregard)\\s+(?:everything|all)\\s+(?:above|before)"),
-            Pattern.compile("(?i)(?:pretend|act|behave)\\s+(?:as|like)\\s+(?:if|you\\s+are)"),
-            Pattern.compile("(?i)system\\s*:\\s*you\\s+are"),
-            Pattern.compile("(?i)new\\s+(?:instructions?|commands?|prompts?)\\s*:")
+            Pattern.compile("(?i)ignore\\s+(?:previous|above|all)\\s+(?:instructions?|commands?|prompts?)"), // 忽略之前的系统指令
+            Pattern.compile("(?i)(?:forget|disregard)\\s+(?:everything|all)\\s+(?:above|before)"),  // 忘记在之前的对话历史或系统提示
+            Pattern.compile("(?i)(?:pretend|act|behave)\\s+(?:as|like)\\s+(?:if|you\\s+are)"),  // 让AI模拟或扮演其他角色
+            Pattern.compile("(?i)system\\s*:\\s*you\\s+are"),   // 伪装成系统提示词
+            Pattern.compile("(?i)new\\s+(?:instructions?|commands?|prompts?)\\s*:")   // 试图提供新的失灵覆盖原有的系统指令
     );
 
     /**

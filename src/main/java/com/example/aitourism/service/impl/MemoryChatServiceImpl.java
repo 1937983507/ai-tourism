@@ -241,7 +241,11 @@ public class MemoryChatServiceImpl implements ChatService {
         List<Message> messages = chatMessageMapper.findBySessionId(sessionId);
         List<ChatHistoryDTO> result = new ArrayList<>();
         for (Message m : messages) {
-            ChatHistoryDTO dto = new ChatHistoryDTO(m.getMsgId(), m.getRole(), m.getContent());
+            ChatHistoryDTO dto = new ChatHistoryDTO();
+            dto.setMsgId(m.getMsgId());
+            dto.setRole(m.getRole());
+            dto.setContent(m.getContent());
+            dto.setModifyTime(m.getModifyTime() != null ? m.getModifyTime().toString() : null);
             result.add(dto);
         }
 
@@ -272,6 +276,30 @@ public class MemoryChatServiceImpl implements ChatService {
         resp.setTotal(total);
 
         return resp;
+    }
+
+    @Override
+    public boolean deleteSession(String sessionId) {
+        try {
+            // 先删消息，再删会话
+            chatMessageMapper.deleteBySessionId(sessionId);
+            int rows = sessionMapper.deleteBySessionId(sessionId);
+            return rows > 0;
+        } catch (Exception e) {
+            log.error("删除会话失败: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean renameSession(String sessionId, String newTitle) {
+        try {
+            int rows = sessionMapper.updateTitle(sessionId, newTitle);
+            return rows > 0;
+        } catch (Exception e) {
+            log.error("修改会话标题失败: {}", e.getMessage(), e);
+            return false;
+        }
     }
 
 

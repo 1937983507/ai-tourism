@@ -74,12 +74,11 @@ public class MemoryAssistantServiceFactory {
 
     /**
      * 基于 caffeine 实现的AI服务实例缓存 - 按会话隔离
-     * 缓存策略：
      */
     private final Cache<String, AssistantService> serviceCache = Caffeine.newBuilder()
             .maximumSize(100)  // 最大缓存 100 个实例
-            .expireAfterWrite(Duration.ofMinutes(60))  // 写入后 60 分钟过期
-            .expireAfterAccess(Duration.ofMinutes(60))  // 访问后 30 分钟过期
+            .expireAfterWrite(Duration.ofMinutes(60))  // 写入后 60 分钟过期，一个 AI Service 无论是否被访问，都会在创建 60 分钟后被清理。
+            .expireAfterAccess(Duration.ofMinutes(30))  // 访问后 30 分钟过期，保证那些不活跃应用的 AI Service 实例能够被及时清理，以释放内存
             .removalListener((key, value, cause) -> {
                 log.debug("AI服务实例被移除，会话: {}, 原因: {}", key, cause);
             })
@@ -102,6 +101,7 @@ public class MemoryAssistantServiceFactory {
         if (!shouldUseCache) {
             log.info("A/B测试：跳过缓存，直接创建新实例");
             Instant startTime = Instant.now();
+            // 则创建 AI Service
             AssistantService service = createAssistantService(sessionId, userId);
             // 记录无缓存创建时间（仅包含创建本身）
             Duration creationTime = Duration.between(startTime, Instant.now());
@@ -116,7 +116,7 @@ public class MemoryAssistantServiceFactory {
         AssistantService cached = serviceCache.getIfPresent(cacheKey);
         if (cached != null) {
             Duration lookupTime = Duration.between(lookupStart, Instant.now());
-            log.info("A/B测试：缓存命中，记录获取耗时 {}", lookupTime);
+            log.info("A/B测试：缓存命中，记录 AI Service 获取耗时 {}", lookupTime);
             // fromCache=true 表示来自缓存；这里统计的是获取时间
             abTestService.recordServiceCreationPerformance(userId, sessionId, lookupTime, true);
             return cached;
@@ -124,7 +124,7 @@ public class MemoryAssistantServiceFactory {
 
         // 缓存未命中：在加载器内部仅统计创建时间（不包含查找时间）
         return serviceCache.get(cacheKey, key -> {
-            log.info("A/B测试：缓存未命中，开始创建新实例");
+            log.info("A/B测试：缓存未命中，开始创建新 AI Service 服务实例");
             Instant createStart = Instant.now();
             AssistantService service = createAssistantService(sessionId, userId);
             Duration creationTime = Duration.between(createStart, Instant.now());
@@ -182,6 +182,7 @@ public class MemoryAssistantServiceFactory {
                 .modelName(modelName)
                 .maxTokens(maxOutputTokens)
                 .listeners(List.of(aiModelMonitorListener))  // 注册监听器
+                .timeout(Duration.ofMinutes(5))
                 .build();
         
         log.info("创建流式模型成功");
