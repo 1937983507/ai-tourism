@@ -90,7 +90,7 @@
   - **Caffeine**：缓存 `AssistantService` 实例
   - **Redis**：承载对话记忆，降低数据库读写压力
 
-- **可观测性与监控**：`Micrometer`` 暴露 `Prometheus` 指标（管理端点已开放 `prometheus`）；`AiModelMonitorListener`/`AiModelMetricsCollector` 记录请求量、耗时、Token 使用、错误率、缓存命中等；Grafana 仪表盘见 `doc/Prometheus-Grafana.json`
+- **可观测性与监控**：`Micrometer` 暴露 `Prometheus` 指标（管理端点已开放 `prometheus`）；`AiModelMonitorListener`/`AiModelMetricsCollector` 记录请求量、耗时、Token 使用、错误率、缓存命中等；Grafana 仪表盘见 `doc/Prometheus-Grafana.json`
 
 ---
 
@@ -318,9 +318,7 @@ java -jar target/ai-tourism-0.0.1-SNAPSHOT.jar
 - [ ] Redis 部分的扩展补充
 
 ### 2. 对话模块（不是记忆模块）
-- [ ] 左侧历史会话列表支持置顶、取消置顶、修改标题
-- [ ] 对话历史列表目前是默认展示 10 条的，可以支持下滑展示更多以前的会话
-- [ ] 对话窗口，显示用户与 AI 机器人的头像、展示消息发送与回答的时间
+- [ ] 左侧历史会话列表支持置顶、取消置顶
 - [ ] 对话过程中，可以直接终止本次对话
 - [ ] 可以对以往发起的对话内容编辑，然后重新对话
 - [ ] 对话框集成示例 prompt，用户可以直接选择，并修改填充后即可发起请求
@@ -334,7 +332,7 @@ java -jar target/ai-tourism-0.0.1-SNAPSHOT.jar
 - [ ] 地图上单击某个地点后，展示其详细信息（含图片与文字说明）
 - [ ] 添加 Github 链接地址
 - [ ] 目前OSM地图在地点定位时，有些地点会出现较大的误差，目前还没有很好的解决方法（因为服务器还在香港，所以就先用OSM地图）
-
+- [ ] 加一个是否自动渲染地图的选项
 
 
 ---
