@@ -39,6 +39,23 @@ create table t_ai_assistant_chat_messages
 )comment 'AI 助手消息表';
 
 
+-- 景点表
+create table if not exists t_poi
+(
+    id bigint auto_increment primary key,
+    poi_name varchar(255) not null comment '景点名称',
+    city_name varchar(255) not null comment '城市名称',
+    poi_description text not null comment '景点描述',
+    poi_longitude float not null comment '景点经度',
+    poi_latitude float not null comment '景点纬度',
+    poi_rankInCity int not null comment '景点在城市中的排名',
+    poi_rankInChina int not null comment '景点在全国中的排名',
+    created_time datetime default CURRENT_TIMESTAMP not null,
+    modify_time datetime default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP
+) comment '景点信息表';
+
+-- 创建索引
+CREATE INDEX idx_city_rank ON t_poi(city_name, poi_rankInCity);
 
 
 -- 用户表
