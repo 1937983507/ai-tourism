@@ -160,6 +160,7 @@ ai-tourism/
 | `t_refresh_token` | 刷新令牌表 | 用户ID、令牌值、过期时间等 |
 | `t_ai_assistant_sessions` | 会话列表 | 会话ID、用户ID、会话标题等 |
 | `t_ai_assistant_chat_messages` | AI助手消息表 | 消息ID、会话ID、消息内容、角色等 |
+| `t_poi` | 景点POI数据 | 景点名、所属城市、景点描述 |
 
 > 详细字段和约束请参考 [sql/create_table.sql](sql/create_table.sql)
 
@@ -344,6 +345,7 @@ java -jar target/ai-tourism-0.0.1-SNAPSHOT.jar
 - [ ] 添加 Github 链接地址。
 - [ ] 目前OSM地图在地点定位时，有些地点的定位会出现较大的误差，目前还没有很好的解决方法（因为服务器还在香港，所以就先用OSM地图）。
 - [ ] 加一个是否自动渲染地图的选项。
+- [ ] 加一个帮助页面。
 
 
 ---
