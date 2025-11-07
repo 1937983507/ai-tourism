@@ -167,7 +167,7 @@ public class MemoryChatServiceImpl implements ChatService {
 
             // 异步获取标题
             CompletableFuture<String> dailyRoutesFuture = getTitleAsync(messages);
-            String title = dailyRoutesFuture.get(10, SECONDS);
+            String title = dailyRoutesFuture.get(60, SECONDS);
             log.info("生成的标题：{}", title);
 
             session = new Session();

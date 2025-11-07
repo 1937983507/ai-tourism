@@ -29,16 +29,18 @@ public class AbTestService {
      * @return true表示使用缓存，false表示不使用缓存
      */
     public boolean shouldUseToolCache(String userId, String sessionId) {
-        if (!abTestConfig.getToolCache().isEnabled()) {
-            return false;
-        }
+        // if (!abTestConfig.getToolCache().isEnabled()) {
+        //     return false;
+        // }
         
-        // 根据配置的无缓存测试比例决定是否使用缓存
-        double noCacheRatio = abTestConfig.getToolCache().getNoCacheTestRatio();
-        boolean useCache = random.nextDouble() >= noCacheRatio;
+        // // 根据配置的无缓存测试比例决定是否使用缓存
+        // double noCacheRatio = abTestConfig.getToolCache().getNoCacheTestRatio();
+        // boolean useCache = random.nextDouble() >= noCacheRatio;
         
-        log.debug("工具缓存A/B测试 - 用户: {}, 会话: {}, 使用缓存: {}", userId, sessionId, useCache);
-        return useCache;
+        // log.debug("工具缓存A/B测试 - 用户: {}, 会话: {}, 使用缓存: {}", userId, sessionId, useCache);
+        // return useCache;
+
+        return true;
     }
     
     /**
@@ -48,15 +50,17 @@ public class AbTestService {
      * @return true表示使用缓存，false表示不使用缓存
      */
     public boolean shouldUseServiceCache(String userId, String sessionId) {
-        if (!abTestConfig.getServiceCache().isEnabled()) {
-            return false;
-        }
+        // if (!abTestConfig.getServiceCache().isEnabled()) {
+        //     return false;
+        // }
         
-        double noCacheRatio = abTestConfig.getServiceCache().getNoCacheTestRatio();
-        boolean useCache = random.nextDouble() >= noCacheRatio;
+        // double noCacheRatio = abTestConfig.getServiceCache().getNoCacheTestRatio();
+        // boolean useCache = random.nextDouble() >= noCacheRatio;
         
-        log.debug("服务缓存A/B测试 - 用户: {}, 会话: {}, 使用缓存: {}", userId, sessionId, useCache);
-        return useCache;
+        // log.debug("服务缓存A/B测试 - 用户: {}, 会话: {}, 使用缓存: {}", userId, sessionId, useCache);
+        // return useCache;
+
+        return true;
     }
     
     /**
@@ -66,15 +70,17 @@ public class AbTestService {
      * @return true表示使用裁剪，false表示不使用裁剪
      */
     public boolean shouldUseTruncation(String userId, String sessionId) {
-        if (!abTestConfig.getTruncation().isEnabled()) {
-            return false;
-        }
+        // if (!abTestConfig.getTruncation().isEnabled()) {
+        //     return false;
+        // }
         
-        double noTruncationRatio = abTestConfig.getTruncation().getNoTruncationTestRatio();
-        boolean useTruncation = random.nextDouble() >= noTruncationRatio;
+        // double noTruncationRatio = abTestConfig.getTruncation().getNoTruncationTestRatio();
+        // boolean useTruncation = random.nextDouble() >= noTruncationRatio;
         
-        log.debug("结果裁剪A/B测试 - 用户: {}, 会话: {}, 使用裁剪: {}", userId, sessionId, useTruncation);
-        return useTruncation;
+        // log.debug("结果裁剪A/B测试 - 用户: {}, 会话: {}, 使用裁剪: {}", userId, sessionId, useTruncation);
+        // return useTruncation;
+
+        return true;
     }
     
     /**
