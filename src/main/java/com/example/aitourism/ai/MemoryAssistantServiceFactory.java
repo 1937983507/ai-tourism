@@ -193,7 +193,7 @@ public class MemoryAssistantServiceFactory {
                     .streamingChatModel(streamingModel)                     // 流式模型
                     .tools((Object[]) toolManager.getAllTools())            // Function Call 工具
                     // .tools(new WeatherTool())
-                    .toolProvider(mcpClientService.createToolProvider())    // 调用MCP工具，MCP工具提供者
+                    // .toolProvider(mcpClientService.createToolProvider())    // 调用MCP工具，MCP工具提供者
                     .chatMemoryProvider(chatMemoryProvider::apply)          // 记忆存储，使用sessionId作为唯一键，Redis会自动加前缀
                     .maxSequentialToolsInvocations(1)                       // 最多连续调用 1 次工具，避免工具调用幻觉
                     .inputGuardrails(new PromptSafetyInputGuardrail())      // 输入护轨
