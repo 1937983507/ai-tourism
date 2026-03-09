@@ -1,12 +1,18 @@
 # AI 智能旅游规划助手（后端）
 
-> **访问地址**：[https://www.aitrip.chat/](https://www.aitrip.chat/)  
+> **访问地址**：[https://www.aitrip.chat/](https://www.aitrip.chat/)
+> 
 > **欢迎体验智能旅游规划服务！**
 >
-> 注：当前项目已停止维护，目前最新版的 AI 智能旅游规划助手请移步以下地址
-> 前端：https://github.com/1937983507/ai-tourism-frontend
-> 后端：https://github.com/1937983507/ai-tourism-backend
-> Agent服务：https://github.com/1937983507/ai-tourism-agent
+> 
+> 注：当前项目已停止维护，目前最新版的 AI 智能旅游规划助手请移步以下地址:
+> 
+> **前端**：https://github.com/1937983507/ai-tourism-frontend
+> 
+> **后端**：https://github.com/1937983507/ai-tourism-backend
+> 
+> **Agent服务**：https://github.com/1937983507/ai-tourism-agent
+> 
 
 ## 📖 项目简介
 
