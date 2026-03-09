@@ -2,6 +2,11 @@
 
 > **访问地址**：[https://www.aitrip.chat/](https://www.aitrip.chat/)  
 > **欢迎体验智能旅游规划服务！**
+>
+> 注：当前项目已停止维护，目前最新版的 AI 智能旅游规划助手请移步以下地址
+> 前端：https://github.com/1937983507/ai-tourism-frontend
+> 后端：https://github.com/1937983507/ai-tourism-backend
+> Agent服务：https://github.com/1937983507/ai-tourism-agent
 
 ## 📖 项目简介
 
@@ -342,7 +347,6 @@ java -jar target/ai-tourism-0.0.1-SNAPSHOT.jar
 - [ ] 将路线规划结果导出为 h5 页面，然后可以手机扫码展示、调起手机导航。
 - [ ] 支持跳转至各景点订单服务。
 - [ ] 地图上单击某个地点后，展示其详细信息（含图片与文字说明）。
-- [ ] 添加 Github 链接地址。
 - [ ] 目前OSM地图在地点定位时，有些地点的定位会出现较大的误差，目前还没有很好的解决方法（因为服务器还在香港，所以就先用OSM地图）。
 - [ ] 加一个是否自动渲染地图的选项。
 - [ ] 加一个帮助页面。
